@@ -11,6 +11,9 @@ Büro, Elternzimmer und Dusche.
 - umschaltbarer Grundriss
 - Möbelkatalog mit Sofa, Tisch, Stuhl, Bett und Schrank
 - Möbel per Maus oder Touch verschieben
+- echte WebGL-3D-Ansicht mit massiven, 2,39 m hohen Wänden
+- feste Sanitärobjekte: Badewanne, WC, Lavabos und Dusche
+- feste Küche mit Zeile, Hochschrank, Insel, Spüle und Kochfeld
 - Masse und Drehung ausgewählter Möbel ändern
 - automatische lokale Speicherung
 - teilbarer Link mit dem vollständigen Planstand
