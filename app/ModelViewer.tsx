@@ -22,6 +22,16 @@ export default function ModelViewer({areas,walls,items,focus,top,selected,onSele
   const wallMat=mat("#eee9df");walls.forEach(([[x1,y1],[x2,y2]])=>{const len=Math.hypot(x2-x1,y2-y1),m=new THREE.Mesh(new THREE.BoxGeometry(len,2.39,.14),wallMat);m.position.set((x1+x2)/2,1.195,-(y1+y2)/2);m.rotation.y=Math.atan2(y2-y1,x2-x1);m.castShadow=m.receiveShadow=true;root.add(m)});
   const box=(name:string,x:number,y:number,w:number,d:number,h:number,color="#ece8df",ry=0)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));m.position.set(x,h/2,-y);m.rotation.y=ry;m.castShadow=m.receiveShadow=true;m.userData.fixture=name;root.add(m);return m};
   const cyl=(name:string,x:number,y:number,r:number,h:number,color="#f7f5ef")=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,28),mat(color));m.position.set(x,h/2,-y);m.userData.fixture=name;root.add(m);return m};
+  const glass=new THREE.MeshStandardMaterial({color:0xaecbd0,transparent:true,opacity:.42,roughness:.18,metalness:.05});
+  const frameMat=mat("#77736b"),doorMat=mat("#a78d6d");
+  const windowX=(x:number,y:number,w:number,sill=.72,h=1.28)=>{const p=new THREE.Mesh(new THREE.BoxGeometry(w,h,.035),glass);p.position.set(x,sill+h/2,-y);root.add(p);[[x-w/2,sill+h/2,.045,h],[x+w/2,sill+h/2,.045,h],[x,sill,w,.045],[x,sill+h,w,.045]].forEach(([px,py,pw,ph])=>{const f=new THREE.Mesh(new THREE.BoxGeometry(pw,ph,.07),frameMat);f.position.set(px,py,-y);root.add(f)})};
+  const windowY=(x:number,y:number,w:number,sill=.72,h=1.28)=>{const p=new THREE.Mesh(new THREE.BoxGeometry(.035,h,w),glass);p.position.set(x,sill+h/2,-y);root.add(p);[[y-w/2,sill+h/2,.045,h],[y+w/2,sill+h/2,.045,h],[y,sill,w,.045],[y,sill+h,w,.045]].forEach(([pz,py,pw,ph],i)=>{const f=new THREE.Mesh(new THREE.BoxGeometry(.07,ph,i<2?.045:pw),frameMat);f.position.set(x,py,-pz);root.add(f)})};
+  const door=(name:string,x:number,y:number,w=.86,rot=0)=>{const g=new THREE.Group(),leaf=new THREE.Mesh(new THREE.BoxGeometry(w,2.02,.045),doorMat);leaf.position.set(w/2,1.01,0);g.add(leaf);const handle=cyl("Türgriff",0,0,.035,.09,"#3c3934");root.remove(handle);handle.rotation.z=Math.PI/2;handle.position.set(w*.82,1.02,.07);g.add(handle);g.position.set(x,0,-y);g.rotation.y=rot;g.userData.fixture=name;root.add(g)};
+  // Fenster und Fenstertüren gemäss den im Plan erkennbaren Fassadenfeldern.
+  windowX(1.35,0,1.85,.18,2.02);windowX(4.75,0,2.8,.18,2.02);windowX(9.45,0,1.86,.72,1.28);windowX(14.05,0,1.86,.72,1.28);
+  windowY(0,2.2,1.85,.18,2.02);windowY(0,5.25,1.85,.72,1.28);windowY(0,9.75,1.0,.72,1.28);windowY(0,13.45,1.0,.72,1.28);
+  // Türblätter zeigen die Öffnungsrichtung; Durchgänge und Nischen bleiben möblierbar.
+  door("Tür Kind 2",3.51,9.05,.86,-Math.PI/2);door("Tür Kind 1",3.51,12.45,.86,-Math.PI/2);door("Tür Bad",4.05,11.2,.75,0);door("Tür WC",6.12,11.2,.73,0);door("Tür Reduit",4.62,8.55,.86,Math.PI/2);door("Tür Büro",8.15,3.05,.88,0);door("Tür Eltern",12.37,4.12,.88,Math.PI/2);door("Tür Dusche",14.67,5.15,.73,Math.PI/2);
   // Bad und WC: Badewanne, Lavabos und Toiletten bleiben feste, nicht nutzbare Einbauten.
   box("Badewanne",4.12,12.87,.72,1.7,.58);box("Badewannenrand",4.12,12.87,.55,1.5,.64,"#cfdad7");
   box("Lavabo Bad",5.42,11.62,.58,.48,.82);cyl("Waschbecken Bad",5.42,11.62,.21,.12,"#ffffff");
