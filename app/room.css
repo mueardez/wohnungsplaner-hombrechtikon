@@ -1,0 +1,19 @@
+.roomPicker {
+  display: grid;
+  gap: 7px;
+  margin: 20px 0 25px;
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.roomPicker select {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 11px;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.catalogTitle { margin-top: 0; }
