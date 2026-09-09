@@ -38,3 +38,5 @@
   height: 100%;
   touch-action: none;
 }
+
+.startup,.webglFallback{min-height:100vh;display:grid;place-content:center;gap:8px;padding:24px;text-align:center;background:#eeeae1;color:#24231f;font-family:Arial,sans-serif}.webglFallback{position:absolute;inset:0;min-height:0}.webglFallback span{max-width:420px;font-size:13px;line-height:1.5;color:#6b665e}
