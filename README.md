@@ -1,6 +1,9 @@
 # Raumplaner Hombrechtikon
 
-Interaktiver, browserbasierter Einrichtungsplaner für die linke Wohnung im Erdgeschoss.
+Interaktiver, browserbasierter Einrichtungsplaner für die Wohnung im Erdgeschoss.
+
+Erfasst sind Wohnen/Essen mit Küche, zwei Kinderzimmer, Bad, WC, Reduit,
+Büro, Elternzimmer und Dusche.
 
 ## Enthalten
 
