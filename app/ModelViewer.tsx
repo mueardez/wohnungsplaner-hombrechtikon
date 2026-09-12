@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-export type Furniture={id:number;name:string;x:number;y:number;w:number;d:number;h:number;rot:number;color:string};
+export type Furniture={id:number;inventoryId:string;name:string;x:number;y:number;w:number;d:number;h:number;rot:number;color:string};
 export type Area={name:string;poly:[number,number][];color:string};
 export type Wall=[[number,number],[number,number]];
 
