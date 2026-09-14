@@ -35,7 +35,7 @@ export default function ModelViewer({areas,walls,items,focus,top,selected,onSele
   windowX(1.35,0,1.85,.08,2.16);windowX(4.7,0,3,.08,2.16);windowX(9.45,0,1.86,.08,2.16);windowX(14.05,0,1.86,.08,2.16);
   windowY(0,1.5,1.2,.08,2.16);windowY(0,5.5,1.2,.08,2.16);windowY(0,9.05,1,.08,2.16);windowY(0,12.45,1,.08,2.16);windowY(0,14.25,1,.08,2.16);
   // Türblätter zeigen die Öffnungsrichtung; Durchgänge und Nischen bleiben möblierbar.
-  door("Tür Kind 2",3.51,9.02,.86,-Math.PI/2);door("Tür Kind 1",4.13,12.05,.86,-Math.PI/2);door("Tür Bad",4.72,12.56,.75,0);door("Tür WC",6.72,12.81,.73,0);door("Tür Reduit",5.78,8.65,.86,Math.PI/2);door("Tür Büro",8.15,3.05,.88,0);door("Tür Eltern",12.37,4.12,.88,Math.PI/2);door("Tür Dusche",14.67,5.15,.73,Math.PI/2);
+  door("Tür Büro Tam",3.51,9.02,.86,-Math.PI/2);door("Tür Büro Reto",4.13,12.05,.86,-Math.PI/2);door("Tür Bad",4.72,12.56,.75,0);door("Tür WC",6.72,12.81,.73,0);door("Tür Reduit",5.78,8.65,.86,Math.PI/2);door("Tür Kinderzimmer Noa",8.15,3.05,.88,0);door("Tür Eltern",12.37,4.12,.88,Math.PI/2);door("Tür Dusche",14.67,5.15,.73,Math.PI/2);
   // Bad und WC: Badewanne, Lavabos und Toiletten bleiben feste, nicht nutzbare Einbauten.
   box("Badewanne",4.68,13.72,.72,1.7,.58);box("Badewannenrand",4.68,13.72,.55,1.5,.64,"#cfdad7");
   box("Lavabo Bad",5.72,14.88,.58,.48,.82);cyl("Waschbecken Bad",5.72,14.88,.21,.12,"#ffffff");
