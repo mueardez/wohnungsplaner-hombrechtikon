@@ -12,6 +12,7 @@ type Props={areas:Area[];walls:Wall[];items:Furniture[];focus:string;top:boolean
 
 export default function ModelViewer({areas,walls,items,focus,top,selected,onSelect,onMove,onRotate}:Props){
  const host=useRef<HTMLDivElement>(null);
+ const syncFurniture=useRef<((items:Furniture[],selected:number|null)=>void)|null>(null);
  useEffect(()=>{
   const el=host.current;if(!el)return;const scene=new THREE.Scene();scene.background=new THREE.Color(0xf3efe6);
   const aspect=el.clientWidth/el.clientHeight,camera=new THREE.OrthographicCamera(-10*aspect,10*aspect,10,-10,.05,100);let renderer:THREE.WebGLRenderer;try{renderer=new THREE.WebGLRenderer({antialias:true})}catch{el.innerHTML='<div class="webglFallback"><strong>3D-Ansicht konnte nicht gestartet werden.</strong><span>Bitte in Chrome die Hardwarebeschleunigung/WebGL aktivieren oder die Grundrissansicht verwenden.</span></div>';return}renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(el.clientWidth,el.clientHeight);renderer.shadowMap.enabled=true;el.replaceChildren(renderer.domElement);
@@ -47,15 +48,92 @@ export default function ModelViewer({areas,walls,items,focus,top,selected,onSele
   box("Küchenzeile",7.55,6.25,.6,2.7,.88,"#c7b493");box("Arbeitsplatte",7.55,6.25,.66,2.74,.05,"#55514a").position.y=.91;
   box("Hochschrank",7.55,7.55,.6,.58,2.1,"#b7a485");box("Kücheninsel",5.55,6.2,1.65,.82,.88,"#c7b493");box("Inselplatte",5.55,6.2,1.72,.88,.05,"#55514a").position.y=.91;
   const sink=box("Spüle",7.55,5.72,.46,.58,.035,"#aab3b2");sink.position.y=.95;for(let i=-1;i<=1;i++)cyl("Kochfeld",5.55+i*.32,6.2,.12,.025,"#191919").position.y=.95;
-  items.forEach(f=>{const g=new THREE.Group(),m=new THREE.Mesh(new THREE.BoxGeometry(f.w,f.h,f.d),mat(f.color));m.position.y=f.h/2;m.castShadow=true;g.add(m);const cv=document.createElement("canvas");cv.width=384;cv.height=80;const cg=cv.getContext("2d")!;cg.fillStyle="rgba(36,35,31,.78)";cg.roundRect(2,2,380,76,15);cg.fill();cg.fillStyle="#fff";cg.textAlign="center";cg.font="600 22px Arial";const label=f.name.length>25?`${f.name.slice(0,24)}…`:f.name;cg.fillText(label,192,47);const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));tag.position.set(0,Math.max(f.h+.14,.38),0);tag.scale.set(Math.min(1.15,Math.max(.55,f.w*.58)),.2,1);tag.renderOrder=20;g.add(tag);g.position.set(f.x,0,-f.y);g.rotation.y=-f.rot;g.userData.furnitureId=f.id;if(f.id===selected){const outline=new THREE.BoxHelper(m,0xdbe765);g.add(outline)}root.add(g)});
+  const furniture=new THREE.Group();root.add(furniture);
+  const disposeObjects=(group:THREE.Object3D)=>{
+   const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();
+   group.traverse(object=>{const renderable=object as THREE.Mesh;if(renderable.geometry)geometries.add(renderable.geometry);if(renderable.material){const list=Array.isArray(renderable.material)?renderable.material:[renderable.material];list.forEach(material=>{materials.add(material);Object.values(material).forEach(value=>{if(value instanceof THREE.Texture)textures.add(value)})})}});
+   textures.forEach(texture=>texture.dispose());materials.forEach(material=>material.dispose());geometries.forEach(geometry=>geometry.dispose());
+  };
+  syncFurniture.current=(nextItems,nextSelected)=>{
+   disposeObjects(furniture);furniture.clear();
+   nextItems.forEach(f=>{const g=new THREE.Group(),m=new THREE.Mesh(new THREE.BoxGeometry(f.w,f.h,f.d),mat(f.color));m.position.y=f.h/2;m.castShadow=true;g.add(m);const cv=document.createElement("canvas");cv.width=384;cv.height=80;const cg=cv.getContext("2d")!;cg.fillStyle="rgba(36,35,31,.78)";cg.roundRect(2,2,380,76,15);cg.fill();cg.fillStyle="#fff";cg.textAlign="center";cg.font="600 22px Arial";const label=f.name.length>25?`${f.name.slice(0,24)}…`:f.name;cg.fillText(label,192,47);const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));tag.position.set(0,Math.max(f.h+.14,.38),0);tag.scale.set(Math.min(1.15,Math.max(.55,f.w*.58)),.2,1);tag.renderOrder=20;g.add(tag);g.position.set(f.x,0,-f.y);g.rotation.y=-f.rot;g.userData.furnitureId=f.id;if(f.id===nextSelected){const outline=new THREE.BoxHelper(m,0xdbe765);g.add(outline)}furniture.add(g)});
+  };
+
   const active=focus==="Gesamtwohnung"?undefined:areas.find(a=>a.name===focus),xs=active?.poly.map(p=>p[0]),ys=active?.poly.map(p=>p[1]),cx=xs?(Math.min(...xs)+Math.max(...xs))/2:8.1,cy=ys?(Math.min(...ys)+Math.max(...ys))/2:7.7,span=xs&&ys?Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys)):16;
   const currentAspect=el.clientWidth/el.clientHeight,viewSize=span*(currentAspect<1?1.55:1.12),distance=span*1.2;camera.left=-viewSize*currentAspect/2;camera.right=viewSize*currentAspect/2;camera.top=viewSize/2;camera.bottom=-viewSize/2;camera.updateProjectionMatrix();if(top)camera.position.set(cx,Math.max(11,span*1.45),-cy+.01);else camera.position.set(cx+distance*.72,Math.max(7,span*.9),-cy+distance*.72);camera.lookAt(cx,0,-cy);
-  const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(cx,0,-cy);controls.enableDamping=true;controls.screenSpacePanning=true;controls.mouseButtons.LEFT=THREE.MOUSE.PAN;controls.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;controls.touches.ONE=THREE.TOUCH.PAN;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;if(top){controls.enableRotate=false;camera.up.set(0,0,-1);camera.lookAt(cx,0,-cy)}
+  const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(cx,0,-cy);controls.enableDamping=false;controls.screenSpacePanning=true;controls.mouseButtons.LEFT=THREE.MOUSE.PAN;controls.mouseButtons.RIGHT=THREE.MOUSE.ROTATE;controls.touches.ONE=THREE.TOUCH.PAN;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;if(top){controls.enableRotate=false;camera.up.set(0,0,-1);camera.lookAt(cx,0,-cy)}
   const ray=new THREE.Raycaster(),pointer=new THREE.Vector2(),plane=new THREE.Plane(new THREE.Vector3(0,1,0),0);let dragging:number|null=null,dragPosition:{x:number;y:number}|null=null;
   const hit=(e:MouseEvent)=>{const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(pointer,camera);return ray};
-  const down=(e:PointerEvent)=>{const hits=hit(e).intersectObjects(root.children,true);const obj=hits.find(h=>{let o:THREE.Object3D|null=h.object;while(o&&!o.userData.furnitureId)o=o.parent;return !!o?.userData.furnitureId});if(!obj){onSelect(null);return}let o:THREE.Object3D|null=obj.object;while(o&&!o.userData.furnitureId)o=o.parent;dragging=o!.userData.furnitureId;onSelect(dragging);controls.enabled=false;renderer.domElement.setPointerCapture(e.pointerId)};
-  const move=(e:PointerEvent)=>{if(dragging==null)return;const p=new THREE.Vector3();if(hit(e).ray.intersectPlane(plane,p)){const x=Math.max(.2,Math.min(15.85,p.x)),y=Math.max(.2,Math.min(15.36,-p.z)),object=root.children.find(child=>child.userData.furnitureId===dragging);if(object)object.position.set(x,0,-y);dragPosition={x,y}}};const up=()=>{if(dragging!=null&&dragPosition)onMove(dragging,dragPosition.x,dragPosition.y);dragging=null;dragPosition=null;controls.enabled=true};const rotate=(e:MouseEvent)=>{const hits=hit(e).intersectObjects(root.children,true);let object:THREE.Object3D|null=hits[0]?.object??null;while(object&&!object.userData.furnitureId)object=object.parent;if(object?.userData.furnitureId)onRotate(object.userData.furnitureId)};renderer.domElement.addEventListener("pointerdown",down);renderer.domElement.addEventListener("pointermove",move);renderer.domElement.addEventListener("pointerup",up);renderer.domElement.addEventListener("pointercancel",up);renderer.domElement.addEventListener("dblclick",rotate);
-  let frame=0;const animate=()=>{controls.update();renderer.render(scene,camera);frame=requestAnimationFrame(animate)};animate();const resize=()=>{const nextAspect=el.clientWidth/el.clientHeight;camera.left=-viewSize*nextAspect/2;camera.right=viewSize*nextAspect/2;camera.top=viewSize/2;camera.bottom=-viewSize/2;camera.updateProjectionMatrix();renderer.setSize(el.clientWidth,el.clientHeight)};addEventListener("resize",resize);
-  return()=>{cancelAnimationFrame(frame);removeEventListener("resize",resize);renderer.dispose();controls.dispose()};
- },[areas,walls,items,focus,top,selected,onSelect,onMove,onRotate]);return <div className="modelViewer" ref={host}/>;
+  let activePointer:number|null=null;const offset=new THREE.Vector3();
+  const furnitureAt=(e:MouseEvent)=>{
+   const hits=hit(e).intersectObjects(furniture.children,true);
+   let object:THREE.Object3D|null=hits[0]?.object??null;
+   while(object&&object.userData.furnitureId==null)object=object.parent;
+   return object;
+  };
+  const down=(e:PointerEvent)=>{
+   if(e.button!==0||!e.isPrimary||activePointer!==null)return;
+   const object=furnitureAt(e);
+   if(!object){onSelect(null);return}
+   const point=new THREE.Vector3();
+   if(!hit(e).ray.intersectPlane(plane,point))return;
+   // Handle furniture before OrbitControls starts a camera gesture.
+   e.stopImmediatePropagation();e.preventDefault();
+   controls.enabled=false;dragging=object.userData.furnitureId;dragPosition=null;activePointer=e.pointerId;
+   offset.copy(object.position).sub(point);
+   renderer.domElement.setPointerCapture(e.pointerId);onSelect(dragging);
+  };
+  const move=(e:PointerEvent)=>{
+   if(dragging===null||e.pointerId!==activePointer)return;
+   const point=new THREE.Vector3();
+   if(hit(e).ray.intersectPlane(plane,point)){
+    point.add(offset);
+    const x=Math.max(.2,Math.min(15.85,point.x)),y=Math.max(.2,Math.min(15.36,-point.z));
+    const object=furniture.children.find(child=>child.userData.furnitureId===dragging);
+    if(object)object.position.set(x,0,-y);
+    dragPosition={x,y};
+   }
+  };
+  const up=(e:PointerEvent)=>{
+   if(e.pointerId!==activePointer)return;
+   if(dragging!==null&&dragPosition)onMove(dragging,dragPosition.x,dragPosition.y);
+   dragging=null;dragPosition=null;activePointer=null;controls.enabled=true;
+   if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId);
+  };
+  const rotate=(e:MouseEvent)=>{const object=furnitureAt(e);if(object)onRotate(object.userData.furnitureId)};
+  renderer.domElement.addEventListener("pointerdown",down,true);
+  renderer.domElement.addEventListener("pointermove",move);
+  renderer.domElement.addEventListener("pointerup",up);
+  renderer.domElement.addEventListener("pointercancel",up);
+  renderer.domElement.addEventListener("lostpointercapture",up);
+  renderer.domElement.addEventListener("dblclick",rotate);
+  let frame=0;const animate=()=>{controls.update();renderer.render(scene,camera);frame=requestAnimationFrame(animate)};animate();
+  const unitsPerPixel=viewSize/el.clientHeight;
+  let viewportWidth=el.clientWidth,viewportHeight=el.clientHeight;
+  const resize=()=>{
+   if(!el.clientWidth||!el.clientHeight)return;
+   // Sidebar selection changes the stage height too. Preserve scale and the
+   // top-left screen position while keeping picking aligned with the canvas.
+   const shift=new THREE.Vector3().setFromMatrixColumn(camera.matrix,0).multiplyScalar((el.clientWidth-viewportWidth)*unitsPerPixel/(2*camera.zoom));
+   shift.addScaledVector(new THREE.Vector3().setFromMatrixColumn(camera.matrix,1),-(el.clientHeight-viewportHeight)*unitsPerPixel/(2*camera.zoom));
+   camera.position.add(shift);controls.target.add(shift);
+   viewportWidth=el.clientWidth;viewportHeight=el.clientHeight;
+   camera.left=-viewportWidth*unitsPerPixel/2;camera.right=-camera.left;
+   camera.top=viewportHeight*unitsPerPixel/2;camera.bottom=-camera.top;
+   camera.updateProjectionMatrix();renderer.setSize(el.clientWidth,el.clientHeight);
+  };
+  const observer=new ResizeObserver(resize);observer.observe(el);
+  return()=>{
+   syncFurniture.current=null;cancelAnimationFrame(frame);observer.disconnect();
+   renderer.domElement.removeEventListener("pointerdown",down,true);
+   renderer.domElement.removeEventListener("pointermove",move);
+   renderer.domElement.removeEventListener("pointerup",up);
+   renderer.domElement.removeEventListener("pointercancel",up);
+   renderer.domElement.removeEventListener("lostpointercapture",up);
+   renderer.domElement.removeEventListener("dblclick",rotate);
+   controls.dispose();disposeObjects(root);renderer.dispose();renderer.domElement.remove();
+  };
+ },[areas,walls,focus,top,onSelect,onMove,onRotate]);
+ useEffect(()=>{syncFurniture.current?.(items,selected)},[items,selected,areas,walls,focus,top,onSelect,onMove,onRotate]);
+ return <div className="modelViewer" ref={host}/>;
 }
