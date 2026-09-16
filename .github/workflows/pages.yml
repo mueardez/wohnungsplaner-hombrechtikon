@@ -1,4 +1,4 @@
-name: GitHub Pages
+name: V2 Preview · GitHub Pages
 
 on:
   push:
@@ -16,8 +16,8 @@ concurrency:
 
 jobs:
   deploy:
-    # A manual run from the V2 branch must not replace the stable website.
-    if: github.ref == 'refs/heads/main'
+    # Never deploy this preview into the stable planner's Pages site.
+    if: github.repository == 'mueardez/wohnungsplaner-hombrechtikon-v2' && github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -29,6 +29,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run typecheck:github
+      - run: npm run test:planner
       - run: npm run build:github
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

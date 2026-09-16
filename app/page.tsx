@@ -1,61 +1,80 @@
 "use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-import "./room.css";
-import ModelViewer from "./ModelViewer";
-import InventoryPanel, { type InventoryItem } from "./InventoryPanel";
-type Pt=[number,number]; type Furniture={id:number;inventoryId:string;name:string;x:number;y:number;w:number;d:number;h:number;rot:number;color:string};
-const rooms:{name:string;poly:Pt[];color:string}[]=[
- {name:"Wohnen / Essen",poly:[[0,0],[7.9,0],[7.9,7.82],[3.3,7.82],[3.3,8.15],[0,8.15]],color:"#d9cbb7"},
- {name:"Küche",poly:[[5.15,4.85],[7.9,4.85],[7.9,7.82],[5.15,7.82]],color:"#c7b69e"},
- {name:"Büro Tam",poly:[[0,8.1],[3.51,8.1],[3.51,11.4],[0,11.4]],color:"#d4c4ad"},
- {name:"Büro Reto",poly:[[0,11.52],[4.13,11.52],[4.13,15.31],[0,15.31]],color:"#d1c0a7"},
- {name:"Reduit",poly:[[5.78,8.1],[7.9,8.1],[7.9,11.39],[5.78,11.39]],color:"#c9b89f"},
- {name:"Bad",poly:[[4.25,12.56],[6.47,12.56],[6.47,15.31],[4.25,15.31]],color:"#aebbb7"},
- {name:"WC",poly:[[6.59,12.81],[7.9,12.81],[7.9,15.31],[6.59,15.31]],color:"#a9b7b3"},
- {name:"Entrée",poly:[[3.63,8.1],[5.66,8.1],[5.66,11.4],[4.13,11.4],[4.13,12.44],[7.9,12.44],[7.9,11.51],[5.78,11.51],[5.78,8.1]],color:"#c1b39f"},
- {name:"Kinderzimmer Noa",poly:[[8.15,0],[12.25,0],[12.25,2.93],[8.15,2.93]],color:"#d8c9b3"},
- {name:"Eltern",poly:[[12.37,0],[16.05,0],[16.05,4.9],[12.37,4.9]],color:"#d2bea7"},
- {name:"Gang Noa / Eltern",poly:[[7.9,2.93],[12.25,2.93],[12.25,4.78],[7.9,4.78]],color:"#c2b5a3"},
- {name:"Nische Noa",poly:[[8.15,2.93],[9.03,2.93],[9.03,3.71],[8.15,3.]],color:"#b8aa97"},
- {name:"Nische Eltern",poly:[[11.49,3.92],[12.25,3.92],[12.25,4.78],[11.49,4.78]],color:"#b8aa97"},
- {name:"Dusche",poly:[[12.37,4.9],[14.67,4.9],[14.67,6.9],[12.37,6.9]],color:"#a8b8b5"},
- {name:"Gang Dusche",poly:[[14.82,4.9],[16.05,4.9],[16.05,6.9],[14.82,6.9]],color:"#c2b5a3"},
-];
-const walls:[Pt,Pt][]=[
- [[0,0],[7.9,0]],[[0,0],[0,15.56]],[[0,15.56],[7.9,15.56]],[[7.9,6.9],[7.9,15.56]],
- [[0,8.1],[3.51,8.1]],[[0,11.52],[4.13,11.52]],[[3.51,8.1],[3.51,11.4]],[[4.13,11.52],[4.13,15.31]],
- [[4.25,12.56],[6.47,12.56]],[[6.59,12.81],[7.9,12.81]],[[4.25,15.31],[7.9,15.31]],[[6.47,12.56],[6.47,15.31]],
- [[5.78,8.1],[7.9,8.1]],[[5.78,8.1],[5.78,11.39]],[[5.78,11.39],[7.9,11.39]],
- [[8.15,0],[16.05,0]],[[16.05,0],[16.05,6.9]],[[12.37,0],[12.37,2.93]],[[8.15,0],[8.15,2.93]],[[8.15,2.93],[11.49,2.93]],[[12.25,2.93],[12.37,2.93]],[[7.9,4.78],[11.49,4.78]],[[12.25,4.78],[12.25,4.9]],[[12.37,4.9],[14.67,4.9]],[[14.82,4.9],[16.05,4.9]],[[12.37,6.9],[16.05,6.9]],[[12.37,4.9],[12.37,6.9]],[[14.67,4.9],[14.67,6.9]],[[14.82,4.9],[14.82,6.9]],[[9.03,2.93],[9.03,3.71]],[[11.49,3.92],[11.49,4.78]]
-];
-function proj(x:number,y:number,z:number,w:number,h:number,yaw:number,zoom:number,top:boolean,center:Pt):Pt{const c=Math.cos(yaw),s=Math.sin(yaw),dx=x-center[0],dy=center[1]-y,X=dx*c-dy*s,Y=dx*s+dy*c;return top?[w/2+X*zoom,h/2+Y*zoom]:[w/2+X*zoom,h*.53+Y*zoom*.42-z*zoom*.78]}
-function corners(f:Furniture):Pt[]{const c=Math.cos(f.rot),s=Math.sin(f.rot),a:[[number,number],[number,number],[number,number],[number,number]]=[[-f.w/2,-f.d/2],[f.w/2,-f.d/2],[f.w/2,f.d/2],[-f.w/2,f.d/2]];return a.map(([x,y])=>[f.x+x*c-y*s,f.y+x*s+y*c])}
-
+import {useCallback,useEffect,useMemo,useRef,useState} from "react";
+import InventoryPanel,{type InventoryItem} from "./InventoryPanel";
+import Plan2D,{type ViewActions} from "./plan/Plan2D";
+import Plan3D from "./plan/Plan3D";
+import {area,bounds,fmt,inferKind,roomNames,rooms,snapItem,warnings,type FurnitureKind,type PlanItem} from "./plan/geometry";
+import {usePlan} from "./plan/usePlan";
+import "./plan/planner.css";
+const stableUrl="https://mueardez.github.io/wohnungsplaner-hombrechtikon/";
+const kinds:{value:FurnitureKind;label:string}[]=[{value:"box",label:"Neutraler Körper"},{value:"table",label:"Tisch"},{value:"chair",label:"Stuhl"},{value:"sofa",label:"Sofa / Sessel"},{value:"bed",label:"Bett"},{value:"shelf",label:"Regal / Schrank"}];
 export default function Home(){
- const canvas=useRef<HTMLCanvasElement>(null),drag=useRef<({kind:"furniture";id:number;sx:number;sy:number;ox:number;oy:number}|{kind:"pan";sx:number;sy:number;ox:number;oy:number})|null>(null); const [yaw,setYaw]=useState(-.58),[zoom,setZoom]=useState(29),[pan,setPan]=useState<Pt>([0,0]),[top,setTop]=useState(false),[fallback,setFallback]=useState(false),[selected,setSelected]=useState<number|null>(1),[notice,setNotice]=useState(""),[focus,setFocus]=useState("Gesamtwohnung");
- const [items,setItems]=useState<Furniture[]>([]),[section,setSection]=useState<"plan"|"inventory">("plan");
- const focusedRoom=rooms.find(r=>r.name===focus), focusXs=focusedRoom?.poly.map(p=>p[0]),focusYs=focusedRoom?.poly.map(p=>p[1]);
- const center:Pt=focusedRoom&&focusXs&&focusYs?[(Math.min(...focusXs)+Math.max(...focusXs))/2,(Math.min(...focusYs)+Math.max(...focusYs))/2]:[8.225,7.78];
- useEffect(()=>{try{const hash=location.hash.slice(1),raw=hash?JSON.parse(decodeURIComponent(atob(hash))):JSON.parse(localStorage.getItem("raumplan")||"null");if(Array.isArray(raw)){const inventoryOnly=raw.filter((item:Furniture)=>typeof item.inventoryId==="string");setItems(inventoryOnly);localStorage.setItem("raumplan",JSON.stringify(inventoryOnly))}}catch{}},[]);
- useEffect(()=>{localStorage.setItem("raumplan",JSON.stringify(items))},[items]);
- const draw=useCallback(()=>{const c=canvas.current;if(!c)return;const dpr=devicePixelRatio||1,r=c.getBoundingClientRect();c.width=r.width*dpr;c.height=r.height*dpr;const g=c.getContext("2d")!;g.scale(dpr,dpr);g.clearRect(0,0,r.width,r.height);const P=(p:Pt,z=0):Pt=>{const q=proj(p[0],p[1],z,r.width,r.height,yaw,zoom,top,center);return[q[0]+pan[0],q[1]+pan[1]]};const face=(p:Pt[],fill:string,stroke="#746b60")=>{g.beginPath();p.forEach((q,i)=>i?g.lineTo(...q):g.moveTo(...q));g.closePath();g.fillStyle=fill;g.fill();g.strokeStyle=stroke;g.lineWidth=1;g.stroke()};rooms.forEach(x=>{g.globalAlpha=focus==="Gesamtwohnung"||x.name===focus?1:.16;face(x.poly.map(q=>P(q)),x.color)});g.globalAlpha=1;if(!top)walls.forEach(([a,b])=>face([P(a),P(b),P(b,2.39),P(a,2.39)],"rgba(244,240,232,.78)","#958b7e"));
- items.forEach(f=>{const base=corners(f),lower=base.map(q=>P(q)),upper=base.map(q=>P(q,f.h));if(!top){face([lower[1],lower[2],upper[2],upper[1]],f.color);face([lower[2],lower[3],upper[3],upper[2]],f.color)}face(upper,f.color,selected===f.id?"#dbe765":"#534e47");if(selected===f.id){g.strokeStyle="#24231f";g.lineWidth=2;g.stroke()}const label=P([f.x,f.y],top?.04:f.h+.28),text=f.name.length>24?`${f.name.slice(0,23)}…`:f.name;g.font="600 10px Arial";g.textAlign="center";const tw=g.measureText(text).width;g.fillStyle="rgba(36,35,31,.9)";g.fillRect(label[0]-tw/2-5,label[1]-10,tw+10,15);g.fillStyle="#fff";g.fillText(text,label[0],label[1]+1)});
- rooms.forEach(x=>{if(!x.name||(focus!=="Gesamtwohnung"&&x.name!==focus))return;const px=x.poly.reduce((n,p)=>n+p[0],0)/x.poly.length,py=x.poly.reduce((n,p)=>n+p[1],0)/x.poly.length,q=P([px,py],.02),xs=x.poly.map(p=>p[0]),ys=x.poly.map(p=>p[1]);g.fillStyle="#39362f";g.font="600 10px Arial";g.textAlign="center";g.fillText(x.name,q[0],q[1]);if(top){g.font="9px Arial";g.fillText(`${(Math.max(...xs)-Math.min(...xs)).toFixed(2).replace(".",",")} × ${(Math.max(...ys)-Math.min(...ys)).toFixed(2).replace(".",",")} m`,q[0],q[1]+13)}});if(top&&focus==="Gesamtwohnung"){const dim=(a:Pt,b:Pt,label:string)=>{const p=P(a),q=P(b),ang=Math.atan2(q[1]-p[1],q[0]-p[0]);g.strokeStyle="#5e5850";g.lineWidth=1;g.beginPath();g.moveTo(...p);g.lineTo(...q);g.stroke();[p,q].forEach(t=>{g.beginPath();g.moveTo(t[0]-4*Math.sin(ang),t[1]+4*Math.cos(ang));g.lineTo(t[0]+4*Math.sin(ang),t[1]-4*Math.cos(ang));g.stroke()});g.save();g.translate((p[0]+q[0])/2,(p[1]+q[1])/2);g.rotate(ang);g.fillStyle="#f7f4ed";g.fillRect(-43,-10,86,15);g.fillStyle="#302d29";g.font="600 10px Arial";g.textAlign="center";g.fillText(label,0,1);g.restore()};dim([0,-.6],[16.45,-.6],"16,45 m gesamt");dim([-.6,0],[-.6,15.56],"15,56 m gesamt")}},[items,selected,top,yaw,zoom,pan,focus,center]);
- useEffect(()=>{draw();const fn=()=>draw();addEventListener("resize",fn);return()=>removeEventListener("resize",fn)},[draw,fallback]);
- const locate=(e:React.PointerEvent)=>{const r=canvas.current!.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;let hit:null|Furniture=null,best=1e9;items.forEach(f=>{const p=proj(f.x,f.y,top?0:f.h,r.width,r.height,yaw,zoom,top,center),px=p[0]+pan[0],py=p[1]+pan[1],d=(px-mx)**2+(py-my)**2;if(d<best&&d<(Math.max(f.w,f.d)*zoom*.8+18)**2){hit=f;best=d}});return{r,mx,my,hit}}
- const down=(e:React.PointerEvent)=>{const q=locate(e);if(q.hit){setSelected(q.hit.id);drag.current={kind:"furniture",id:q.hit.id,sx:q.mx,sy:q.my,ox:q.hit.x,oy:q.hit.y}}else{setSelected(null);drag.current={kind:"pan",sx:q.mx,sy:q.my,ox:pan[0],oy:pan[1]}}canvas.current!.setPointerCapture(e.pointerId)};
- const move=(e:React.PointerEvent)=>{const current=drag.current;if(!current)return;const r=canvas.current!.getBoundingClientRect(),dx=e.clientX-r.left-current.sx,dy=e.clientY-r.top-current.sy;if(current.kind==="pan"){setPan([current.ox+dx,current.oy+dy]);return}const c=Math.cos(yaw),s=Math.sin(yaw),worldX=dx/zoom,worldY=dy/(zoom*(top?1:.42));setItems(v=>v.map(f=>f.id===current.id?{...f,x:Math.max(.2,Math.min(15.85,current.ox+worldX*c+worldY*s)),y:Math.max(.2,Math.min(15.36,current.oy+worldX*s-worldY*c))}:f))};
- const chooseFocus=(name:string)=>{setFocus(name);setPan([0,0]);if(name==="Gesamtwohnung"){setZoom(29);return}const room=rooms.find(r=>r.name===name);if(!room)return;const xs=room.poly.map(p=>p[0]),ys=room.poly.map(p=>p[1]),span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));setZoom(Math.min(56,Math.max(36,180/span)))};
- const update=(key:"rot"|"w"|"d",v:number)=>setItems(x=>x.map(f=>f.id===selected?{...f,[key]:v}:f));const active=items.find(x=>x.id===selected);
- const turn=(degrees:number)=>setItems(x=>x.map(f=>f.id===selected?{...f,rot:(f.rot+degrees*Math.PI/180+Math.PI*2)%(Math.PI*2)}:f));
- const moveItem=useCallback((id:number,x:number,y:number)=>setItems(v=>v.map(f=>f.id===id?{...f,x,y}:f)),[]);
- const rotateItem=useCallback((id:number)=>setItems(v=>v.map(f=>f.id===id?{...f,rot:(f.rot+Math.PI/2)%(Math.PI*2)}:f)),[]);
- const selectItem=useCallback((id:number|null)=>setSelected(id),[]);
- const share=async()=>{const url=location.href.split("#")[0]+"#"+btoa(encodeURIComponent(JSON.stringify(items)));history.replaceState(null,"",url);try{await navigator.clipboard.writeText(url);setNotice("Link kopiert") }catch{setNotice("Link ist bereit")};setTimeout(()=>setNotice(""),2200)};
- const placeInventoryItem=(item:InventoryItem)=>{if(!item.width||!item.depth||!item.height)return;const room=rooms.find(r=>r.name===item.room),xs=room?.poly.map(p=>p[0]),ys=room?.poly.map(p=>p[1]),id=Date.now(),x=xs?(Math.min(...xs)+Math.max(...xs))/2:center[0],y=ys?(Math.min(...ys)+Math.max(...ys))/2:center[1];setItems(current=>[...current,{id,inventoryId:item.id,name:item.title,x,y,w:item.width!,d:item.depth!,h:item.height!,rot:0,color:"#758a7b"}]);setSelected(id);setSection("plan");chooseFocus(item.room)};
- return <main><header><div><span className="eyebrow">HOMBRECHTIKON · WOHNUNG</span><h1>Raumplaner</h1></div><nav className="mainNav" aria-label="Hauptnavigation"><button className={section==="plan"?"active":""} onClick={()=>setSection("plan")}>Raumplan</button><button className={section==="inventory"?"active":""} onClick={()=>setSection("inventory")}>Inventar</button></nav><div className="headActions">{section==="plan"&&<button className="share" onClick={share}>{notice||"Plan teilen"}</button>}<span className="status">3D-Modell v1.1</span></div></header>
- {section==="inventory"?<InventoryPanel roomNames={[...rooms.map(room=>room.name),"Terrasse"]} onPlace={placeInventoryItem}/>:<>
- <section className="workspace"><aside><p className="kicker">RAUMANSICHT</p><h2>Gemeinsam<br/>einrichten.</h2><p className="intro">Einen Raum oder Gang einzeln fokussieren und dort Inventarmöbel platzieren.</p><label className="roomPicker">Bereich<select value={focus} onChange={e=>chooseFocus(e.target.value)}><option>Gesamtwohnung</option>{rooms.filter(r=>r.name).map(r=><option key={r.name}>{r.name}</option>)}</select></label><div className="builtins"><strong>Feste Bauteile und Einbauten</strong><span>Badewanne · WC · 3 Lavabos · Dusche</span><span>Küchenzeile · Hochschrank · Insel · Spüle · Kochfeld</span><span>8 Innentüren · 9 bodentiefe Fenstertüren zur Terrasse</span></div><div className="inventoryNotice"><strong>Möbel aus dem Inventar</strong><span>Neue Möbel werden ausschliesslich in der Inventarliste erfasst und von dort im Plan platziert.</span><button onClick={()=>setSection("inventory")}>Inventar öffnen</button></div>{active&&<div className="editor"><div className="editorTitle"><strong>{active.name}</strong><button aria-label="Möbel aus dem Plan entfernen" title="Aus dem Plan entfernen" onClick={()=>{setItems(x=>x.filter(f=>f.id!==active.id));setSelected(null)}}>×</button></div><div className="rotationControl"><span>Drehung</span><strong>{Math.round(active.rot*180/Math.PI)}°</strong><div><button onClick={()=>turn(-15)}>−15°</button><button onClick={()=>turn(15)}>+15°</button><button onClick={()=>turn(90)}>+90°</button></div></div><label>Breite <span>{active.w.toFixed(2)} m</span><input type="range" min=".3" max="3" step=".05" value={active.w} onChange={e=>update("w",+e.target.value)}/></label><label>Tiefe <span>{active.d.toFixed(2)} m</span><input type="range" min=".3" max="2.5" step=".05" value={active.d} onChange={e=>update("d",+e.target.value)}/></label><small className="removeHint">Mit × nur aus dem Plan entfernen; der Inventareintrag bleibt bestehen.</small></div>}<div className="assumption">Raumhöhe <strong>2,39 m*</strong><small>* Annahme gemäss Schnitt A–A</small></div></aside>
- <div className="stage"><div className="viewbar"><button className={!fallback&&!top?"active":""} onClick={()=>{setFallback(false);setTop(false)}}>3D</button><button className={!fallback&&top?"active":""} onClick={()=>{setFallback(false);setTop(true)}}>Grundriss</button><button className={fallback?"active":""} onClick={()=>{setFallback(true);setTop(true)}}>2D-Fallback</button></div>{fallback?<canvas ref={canvas} onDoubleClick={()=>selected&&rotateItem(selected)} onPointerDown={down} onPointerMove={move} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null}/>:<ModelViewer areas={rooms} walls={walls} items={items} focus={focus} top={top} selected={selected} onSelect={selectItem} onMove={moveItem} onRotate={rotateItem}/>}<div className="hint">{fallback?"Freie Fläche ziehen: Ansicht verschieben · Möbel ziehen: platzieren":"Freie Fläche ziehen: Ansicht verschieben · Möbel ziehen: platzieren · Rad: Zoom"}</div></div></section></>}</main>
+ const plan=usePlan(),[section,setSection]=useState<"plan"|"inventory">("plan"),[mode,setMode]=useState<"2d"|"3d">("2d"),[focus,setFocus]=useState("all"),[selected,setSelected]=useState<string|null>(null);
+ const [labels,setLabels]=useState(true),[dimensions,setDimensions]=useState(true),[snap,setSnap]=useState(true),[cutaway,setCutaway]=useState(true),[notice,setNotice]=useState("");
+ const actionsRef=useRef<ViewActions|null>(null),active=plan.items.find(f=>f.id===selected),activeRoom=rooms.find(r=>r.id===focus);
+ const select=useCallback((id:string|null)=>setSelected(id),[]);
+ const errors=useMemo(()=>active?warnings(active,plan.items):[],[active,plan.items]);
+ const warningCount=useMemo(()=>plan.items.filter(f=>warnings(f,plan.items).length).length,[plan.items]);
+ const webglError=useCallback(()=>{setMode("2d");setNotice("3D ist in diesem Browser nicht verfügbar. Im 2D-Grundriss kannst du weiterplanen.")},[]);
+ const update=(patch:Partial<PlanItem>)=>{if(active)plan.change(plan.current.current.map(f=>f.id===active.id?{...f,...patch}:f))};
+ const rotate=(degrees:number)=>{if(active)update({rot:(active.rot+degrees*Math.PI/180+Math.PI*2)%(Math.PI*2)})};
+ const remove=()=>{if(!active)return;plan.change(plan.current.current.filter(f=>f.id!==active.id));setSelected(null);setNotice("Aus dem Testplan entfernt. Der Inventareintrag bleibt erhalten.")};
+ const place=(item:InventoryItem)=>{
+  if(!item.width||!item.depth||!item.height||item.includeInPlan===false||["Keller","Terrasse"].includes(item.room)){setNotice("Diese Inventarposition ist nur zur Inventarisierung vorgesehen.");return}
+  const placed=plan.current.current.filter(f=>f.inventoryId===item.id);
+  if(placed.length>=item.quantity){setSection("plan");setSelected(placed[0].id);setFocus(rooms.find(r=>r.name===item.room)?.id??"all");setNotice("Alle Exemplare dieser Position sind bereits im Testplan.");return}
+  const room=rooms.find(r=>r.name===item.room)??rooms[6],b=bounds(room.poly);
+  const f:PlanItem={id:crypto.randomUUID(),inventoryId:item.id,name:item.title,room:item.room,x:(b.minX+b.maxX)/2,y:(b.minY+b.maxY)/2,w:item.width,d:item.depth,h:item.height,rot:0,kind:inferKind(item.title),color:"#99ad88"};
+  let done=false;for(let y=b.minY+f.d/2+.10;y<=b.maxY-f.d/2&&!done;y+=.25)for(let x=b.minX+f.w/2+.10;x<=b.maxX-f.w/2;x+=.25){const candidate={...f,x,y};if(!warnings(candidate,plan.current.current).length){f.x=x;f.y=y;done=true;break}}
+  plan.change([...plan.current.current,f]);setFocus(room.id);setSelected(f.id);setSection("plan");setNotice(done?"Möbel im Testplan platziert.":"Möbel platziert. Bitte die Platzierungshinweise prüfen.");
+ };
+ useEffect(()=>{const key=(e:KeyboardEvent)=>{if(section!=="plan"||(e.target instanceof HTMLElement&&e.target.closest("input,textarea,select,[contenteditable]")))return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();if(e.shiftKey)plan.redo();else plan.undo();return}
+  const f=plan.current.current.find(f=>f.id===selected);if(!f)return;
+  const delta:Record<string,[number,number]>={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+  if(delta[e.key]){e.preventDefault();const d=delta[e.key],step=e.shiftKey?.10:.01;plan.change(plan.current.current.map(item=>item.id===f.id?{...f,x:f.x+d[0]*step,y:f.y+d[1]*step}:item))}
+  if(e.key==="Escape")setSelected(null);
+ };window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key)},[section,selected,plan]);
+ const viewerProps={items:plan.items,selected,focus,labels,dimensions,snap,cutaway,onSelect:select,onBegin:plan.begin,onPreview:plan.preview,onEnd:plan.end,actionsRef,onError:webglError};
+ return <main className="v2-main">
+  <header className="v2-header"><div className="v2-brand"><span className="brand-mark">H</span><div><h1>Raumplaner</h1><span>Hombrechtikon</span></div><span className="v2-badge">V2 · Vorschau</span></div><nav className="mainNav" aria-label="Hauptnavigation"><button className={section==="plan"?"active":""} onClick={()=>setSection("plan")}>Raumplan</button><button className={section==="inventory"?"active":""} onClick={()=>setSection("inventory")}>Inventar & PDF</button></nav><a className="stable-link" href={stableUrl} target="_blank" rel="noreferrer">Aktuelle Version ↗</a></header>
+  <div className="v2-banner"><span>Separater Testbereich · Eure aktuelle Version bleibt erhalten.</span><span>Inventar übernehmen: in der aktuellen Version «Sicherung», hier «Import».</span></div>
+  {(notice||plan.storageError)&&<div className="v2-notice" role="status"><span>{plan.storageError||notice}</span>{notice&&!plan.storageError&&<button aria-label="Hinweis schliessen" onClick={()=>setNotice("")}>×</button>}</div>}
+  {section==="inventory"?<InventoryPanel roomNames={roomNames} onPlace={place}/>:<>
+   <div className="plan-toolbar"><div className="view-toggle" role="group" aria-label="Ansicht"><button aria-pressed={mode==="2d"} className={mode==="2d"?"active":""} onClick={()=>setMode("2d")}>Grundriss</button><button aria-pressed={mode==="3d"} className={mode==="3d"?"active":""} onClick={()=>setMode("3d")}>3D</button></div>
+    <div className="history-buttons"><button title="Rückgängig (Ctrl/⌘ Z)" aria-label="Rückgängig" disabled={!plan.canUndo} onClick={plan.undo}>↶</button><button title="Wiederholen (Ctrl/⌘ Shift Z)" aria-label="Wiederholen" disabled={!plan.canRedo} onClick={plan.redo}>↷</button></div>
+    <label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/>Einrasten</label><label><input type="checkbox" checked={labels} onChange={e=>setLabels(e.target.checked)}/>Bezeichnungen</label>
+    {mode==="2d"?<label><input type="checkbox" checked={dimensions} onChange={e=>setDimensions(e.target.checked)}/>Masse</label>:<label><input type="checkbox" checked={cutaway} onChange={e=>setCutaway(e.target.checked)}/>Wände niedrig</label>}
+    <button className="fit-button" onClick={()=>actionsRef.current?.fit()}>Ansicht einpassen</button>
+   </div>
+   <div className="v2-workspace">
+    <aside className="rooms-panel"><div className="panel-heading"><span className="kicker">DEINE WOHNUNG</span><h2>Räume & Bereiche</h2></div>
+     <button className={focus==="all"?"room-row current":"room-row"} onClick={()=>{setFocus("all");setSelected(null)}}><span>Gesamtwohnung</span><small>Übersicht</small></button>
+     <div className="room-list">{rooms.filter(r=>!r.zone).map(r=><button key={r.id} className={focus===r.id?"room-row current":"room-row"} onClick={()=>{setFocus(r.id);setSelected(null)}}><span>{r.name}</span><small>ca. {fmt(area(r.poly))} m²</small></button>)}</div>
+     <details className="subareas"><summary>Weitere Bereiche</summary>{rooms.filter(r=>r.zone).map(r=><button key={r.id} className={focus===r.id?"room-row current":"room-row"} onClick={()=>{setFocus(r.id);setSelected(null)}}>{r.name}</button>)}<div className="inventory-zone">Terrasse · Keller<small>Nur im Inventar zuordnen</small></div></details>
+     <details className="plan-notes"><summary>Planstand & Annahmen</summary><p>Nach Originalplan neu abgeglichen. Raumflächen sind aus der Modellgeometrie berechnet.</p><p>Raumhöhe: 2,39 m laut Schnitt. Einbauten, Öffnungsdetails und Nischen sind angenähert. Für die Küche fehlt der separate Detailplan.</p><p>Vor einer Bestellung vor Ort nachmessen.</p></details>
+    </aside>
+    <section className="v2-stage" aria-label="Planungsfläche"><div className="stage-title"><span>{activeRoom?.name??"Gesamtwohnung"}</span><small>{mode==="2d"?"2D · massstäblich":"3D · schematische Möbelformen"}</small></div>
+     {mode==="2d"?<Plan2D {...viewerProps}/>:<Plan3D {...viewerProps}/>}
+     <div className="zoom-buttons"><button aria-label="Hineinzoomen" onClick={()=>actionsRef.current?.zoom(1.25)}>+</button><button aria-label="Herauszoomen" onClick={()=>actionsRef.current?.zoom(.8)}>−</button></div>
+    </section>
+    <aside className="object-panel"><div className="panel-heading"><span className="kicker">EINRICHTEN</span><h2>{active?"Möbel bearbeiten":"Möbel im Plan"}</h2></div>
+     {active?<div className="item-editor"><div className="selected-name">{active.name}</div><span className="muted">{active.room}</span>
+      <div className="item-measure"><span>Breite <strong>{fmt(active.w)} m</strong></span><span>Tiefe <strong>{fmt(active.d)} m</strong></span><span>Höhe <strong>{fmt(active.h)} m</strong></span></div>
+      <p className="small-note">Masse aus dem Inventar. Die Darstellung bleibt beim Verschieben gleich gross.</p>
+      <label className="field">Drehwinkel<div className="degree-field"><input aria-label="Drehwinkel in Grad" type="number" min="0" max="359" value={Math.round(active.rot*180/Math.PI)%360} onChange={e=>{const value=Number(e.target.value);if(Number.isFinite(value))update({rot:((value%360+360)%360)*Math.PI/180})}}/><span>°</span></div></label>
+      <div className="rotation-buttons"><button onClick={()=>rotate(-15)}>−15°</button><button onClick={()=>rotate(15)}>+15°</button><button onClick={()=>rotate(90)}>+90°</button></div>
+      <label className="field">Möbelform<select value={active.kind} onChange={e=>update({kind:e.target.value as FurnitureKind})}>{kinds.map(k=><option key={k.value} value={k.value}>{k.label}</option>)}</select></label>
+      <label className="field color-field">Farbe<input aria-label="Möbelfarbe" type="color" value={active.color} onChange={e=>update({color:e.target.value})}/></label>
+      <button className="outline-action" onClick={()=>{const f=snapItem(active,true);update({x:f.x,y:f.y})}}>Am Raster / Wand ausrichten</button>
+      {errors.length?<div className="placement-warning"><strong>Platzierung prüfen</strong><ul>{errors.map(e=><li key={e}>{e}</li>)}</ul></div>:<div className="placement-good">Keine Überschneidung im Modell erkannt</div>}
+      <button className="remove-placement" onClick={remove}>Aus dem Plan entfernen</button>
+      <p className="small-note">Pfeiltasten: 1 cm · Shift: 10 cm<br/>Alt beim Ziehen: ohne Einrasten</p>
+     </div>:<div className="placement-intro"><p>Erfasse Möbel im Inventar und platziere sie hier. Ziehe eine freie Fläche, um den Plan zu verschieben.</p><button className="add-from-inventory" onClick={()=>setSection("inventory")}>+ Möbel aus Inventar</button>{!plan.items.length&&<div className="empty-plan"><span>Dein Testplan ist noch leer.</span><p>Bestehende Inventarsicherung importieren oder neue Testmöbel erfassen.</p></div>}</div>}
+     {!!plan.items.length&&<div className="placed-list"><div className="list-caption">{plan.items.length} platziert{warningCount? ` · ${warningCount} mit Hinweis`:""}</div>{plan.items.filter(f=>!activeRoom||f.room===activeRoom.name).map(f=><button className={selected===f.id?"placed-item current":"placed-item"} key={f.id} onClick={()=>setSelected(f.id)}><i style={{background:f.color}}/><span>{f.name}<small>{fmt(f.w)} × {fmt(f.d)} m</small></span></button>)}<button className="outline-action" onClick={()=>setSection("inventory")}>Inventar öffnen</button></div>}
+    </aside>
+   </div>
+   <footer className="plan-footer"><span>{plan.storageError?"Speichern nicht möglich":plan.ready?"Testplan wird lokal gespeichert":"Testplan wird geladen"}</span><span>5-cm-Raster · Raumhöhe 2,39 m · Einbaudetails angenähert</span></footer>
+  </>}
+ </main>;
 }
