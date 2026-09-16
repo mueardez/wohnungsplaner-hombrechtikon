@@ -16,6 +16,8 @@ concurrency:
 
 jobs:
   deploy:
+    # A manual run from the V2 branch must not replace the stable website.
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
