@@ -29,6 +29,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run test:pdf
       - run: npm run typecheck:github
       - run: npm run test:planner
       - run: npm run build:github
