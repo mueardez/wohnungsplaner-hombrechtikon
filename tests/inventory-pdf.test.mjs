@@ -4,6 +4,17 @@ import {createInventoryPdf} from '../app/inventoryPdf.ts';
 const home={address:'Testadresse',floor:'2',rooms:'4',area:120,staircase:'Breit',elevator:true,parking:'Vor dem Haus',photos:[]};
 const details={oldHome:home,newHome:home,persons:3};
 const base={id:'one',title:'Testmöbel',description:'',room:'Keller',quantity:1,includeInPlan:false,needsPacking:false,needsAssembly:false,updatedAt:'2026-09-17'};
+test('cover title uses both saved addresses and normalizes line breaks',()=>{
+ const pdf=createInventoryPdf([],[],{...details,oldHome:{...home,address:'  Altweg 1\n8000 Zürich  '},newHome:{...home,address:'Neuweg 2\n8634 Hombrechtikon'}});
+ const text=[...pdf.internal.pages[1].join('\n').matchAll(/\(([^()]*)\) Tj/g)].map(match=>match[1]).join(' ');
+ assert.ok(text.includes('Umzug - Altweg 1 8000 Zürich >'));
+ assert.ok(text.includes('Neuweg 2 8634 Hombrechtikon'));
+ assert.ok(!text.includes('Wohnungen & Familie'));
+});
+test('empty addresses use neutral placeholders',()=>{
+ const pdf=createInventoryPdf([],[],{...details,oldHome:{...home,address:''},newHome:{...home,address:'  '}});
+ assert.ok(pdf.internal.pages[1].join('\n').includes('Umzug - - > -'));
+});
 test('housing comes first and every populated room starts a new page',()=>{
  const pdf=createInventoryPdf([base,{...base,id:'two',room:'Terrasse'}],['Keller','Terrasse'],details);
  assert.equal(pdf.getNumberOfPages(),4);

@@ -8,7 +8,7 @@ export function createInventoryPdf(items: InventoryItem[], roomNames: string[], 
   const font=(size:number,bold=false,color=40)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);doc.setTextColor(color);};
   const footer=()=>{font(8,false,110);doc.text(`Umzugsinventar · Seite ${doc.getNumberOfPages()}`,margin,288);};
   const page=()=>{footer();doc.addPage();y=18;};
-  const heading=(text:string)=>{doc.setFillColor(219,231,101);doc.rect(0,0,210,7,'F');font(20,true);doc.text(text,margin,y);y+=12;};
+  const heading=(text:string)=>{doc.setFillColor(219,231,101);doc.rect(0,0,210,7,'F');font(20,true);const lines=doc.splitTextToSize(text,width) as string[];for(const line of lines){if(y+9>bottom)page();font(20,true);doc.text(line,margin,y);y+=9;}y+=3;};
   const text=(value:string,x=margin,maxWidth=width,size=10,bold=false)=>{
     font(size,bold);const lines=doc.splitTextToSize(value||'-',maxWidth) as string[];
     for(const line of lines){if(y+5>bottom)page();font(size,bold);doc.text(line,x,y);y+=5;}
@@ -17,7 +17,8 @@ export function createInventoryPdf(items: InventoryItem[], roomNames: string[], 
     const p=doc.getImageProperties(value),scale=Math.min(w/p.width,h/p.height),iw=p.width*scale,ih=p.height*scale;
     doc.addImage(value,'JPEG',x+(w-iw)/2,top+(h-ih)/2,iw,ih,undefined,'FAST');
   };
-  heading('Umzug · Wohnungen & Familie');
+  const address=(value:string)=>value.trim().replace(/\s+/g,' ')||'-';
+  heading(`Umzug - ${address(details.oldHome.address)} > ${address(details.newHome.address)}`);
   text(`Erstellt am ${new Date().toLocaleDateString('de-CH')}`,margin,width,9);
   y+=4;text(`Familie: ${details.persons??'-'} Personen`,margin,width,12,true);
   text(`${items.length} Inventarpositionen · ${items.reduce((sum,item)=>sum+item.quantity,0)} Stück`);
