@@ -37,7 +37,8 @@ export default function InventoryPanel({roomNames,onPlace}:{roomNames:string[];o
  const title=doc.splitTextToSize(`${item.quantity}× ${item.title}`,textWidth);
  doc.setFont("helvetica","normal");doc.setFontSize(8.5);
  const description=doc.splitTextToSize(item.description.trim()||"-",textWidth);
- const titleExtra=(title.length-1)*4.5,descriptionOffset=23+titleExtra+(item.needsPacking?5:0);
+ const showDimensions=[item.width,item.depth,item.height].some(value=>typeof value==="number"&&Number.isFinite(value)&&value>0);
+ const titleExtra=(title.length-1)*4.5,descriptionOffset=11+titleExtra+(showDimensions?6:0)+(item.needsPacking?5:0)+(item.needsAssembly?6:0);
  const height=Math.max(31,descriptionOffset+description.length*4+3);
  if(y+height>279)newPage();
  if(item.photo)try{doc.addImage(item.photo,"JPEG",margin,y,34,27,undefined,"FAST")}
@@ -45,12 +46,11 @@ export default function InventoryPanel({roomNames,onPlace}:{roomNames:string[];o
  doc.setFont("helvetica","bold");doc.setFontSize(11);doc.setTextColor(36);
  doc.text(title,x,y+5,{lineHeightFactor:1.16});
  doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(75);
- doc.text(`B × T × H: ${metric(item.width)} × ${metric(item.depth)} × ${metric(item.height)} m`,x,y+11+titleExtra);
+ if(showDimensions)doc.text(`B × T × H: ${metric(item.width)} × ${metric(item.depth)} × ${metric(item.height)} m`,x,y+11+titleExtra);
  doc.setFontSize(8.5);doc.setTextColor(70);
- let serviceY=y+17+titleExtra;
+ let serviceY=y+11+titleExtra+(showDimensions?6:0);
  if(item.needsPacking){doc.setFont("helvetica","bold");doc.text("Muss verpackt werden",x,serviceY);serviceY+=5}
- doc.setFont("helvetica",item.needsAssembly?"bold":"normal");
- doc.text(`Kann De-/Montiert werden: ${item.needsAssembly?"Ja":"Nein"}`,x,serviceY);
+ if(item.needsAssembly){doc.setFont("helvetica","bold");doc.text("Kann De-/Montiert werden: Ja",x,serviceY)}
  doc.setFont("helvetica","normal");doc.setTextColor(105);
  doc.text(description,x,y+descriptionOffset,{lineHeightFactor:1.33});
  y+=height;doc.setDrawColor(210);doc.line(margin,y-2,pageWidth-margin,y-2)});y+=3});footer();doc.save(`umzugsinventar-${new Date().toISOString().slice(0,10)}.pdf`)};
