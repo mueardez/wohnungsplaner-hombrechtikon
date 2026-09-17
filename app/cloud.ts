@@ -3,6 +3,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/
 import { collection, doc, getDoc, getFirestore, initializeFirestore, memoryLocalCache, onSnapshot, runTransaction } from 'firebase/firestore';
 import { getBlob, getStorage, ref, uploadString } from 'firebase/storage';
 import type { InventoryItem } from './InventoryPanel';
+import {inventoryUrl} from "./inventoryUrl";
 import { emptyMove, type MoveDetails } from './moveTypes';
 
 // Public client configuration, not a credential. Access is enforced by Firebase rules.
@@ -74,6 +75,7 @@ export function watchItems(next: (items: InventoryItem[]) => void, fail: (error:
   return () => { active = false; stop(); };
 }
 export async function saveCloudItem(item: InventoryItem, onlyNew = false): Promise<boolean> {
+  const url = inventoryUrl(item.url);
   const target = doc(itemsRef, item.id);
   if (onlyNew && (await getDoc(target)).exists()) return false;
   const photo = await savePhoto(item.photo);
@@ -84,7 +86,7 @@ export async function saveCloudItem(item: InventoryItem, onlyNew = false): Promi
     if (!onlyNew && !current.exists() && item.revision) throw new Error('Dieser Eintrag wurde inzwischen gelöscht.');
     const value = { ...item, revision: (current.data()?.revision ?? 0) + 1, updatedAt: new Date().toISOString() };
     // Omit removed photos instead of retaining stale paths.
-    const clean = JSON.parse(JSON.stringify({ ...value, photo }));
+    const clean = JSON.parse(JSON.stringify({ ...value, photo, url }));
     tx.set(target, clean);
     return true;
   });
