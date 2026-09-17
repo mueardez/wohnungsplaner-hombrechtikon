@@ -59,6 +59,9 @@ async function savePhoto(value?: string): Promise<string | undefined> {
   uploaded.set(value, path);
   return path;
 }
+export function watchPurchaseFlags(next: (flags: Record<string, boolean>) => void, fail: (error: unknown) => void) {
+  return onSnapshot(itemsRef, snapshot => next(Object.fromEntries(snapshot.docs.map(d => [d.id, d.data().isNewPurchase === true]))), fail);
+}
 export function watchItems(next: (items: InventoryItem[]) => void, fail: (error: unknown) => void) {
   let sequence = 0, active = true;
   const stop = onSnapshot(itemsRef, async snapshot => {

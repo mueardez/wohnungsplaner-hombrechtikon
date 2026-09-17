@@ -1,6 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createInventoryPdf} from '../app/inventoryPdf.ts';
+import {purchaseColor,PURCHASE_COLOR} from '../app/purchaseStyle.ts';
+test('new purchases use violet without changing the base colour',()=>{
+ assert.equal(purchaseColor(true,'#758a7b'),PURCHASE_COLOR);
+ assert.equal(purchaseColor(false,'#758a7b'),'#758a7b');
+ assert.equal(purchaseColor(undefined,'#758a7b'),'#758a7b');
+});
 const home={address:'Testadresse',floor:'2',rooms:'4',area:120,staircase:'Breit',elevator:true,parking:'Vor dem Haus',photos:[]};
 const details={oldHome:home,newHome:home,persons:3};
 const base={id:'one',title:'Testmöbel',description:'',room:'Keller',quantity:1,includeInPlan:false,needsPacking:false,needsAssembly:false,updatedAt:'2026-09-17'};
@@ -41,3 +47,15 @@ test('long descriptions paginate and unknown rooms are not silently lost',()=>{
  assert.ok(pdf.internal.pages[3].join('\n').includes('Anderer Bereich'));
 });
 test('housing PDF is available without inventory',()=>assert.equal(createInventoryPdf([],[],details).getNumberOfPages(),2));
+test('new purchases are excluded from pages and totals, legacy records remain',()=>{
+ const values=[base,{...base,id:'new',title:'NEW PURCHASE',room:'New-only room',quantity:8,isNewPurchase:true}];
+ const pdf=createInventoryPdf(values,['Keller','New-only room'],details);
+ assert.equal(pdf.getNumberOfPages(),3);
+ const content=pdf.internal.pages.flat().join('\n');
+ assert.ok(!content.includes('NEW PURCHASE'));
+ assert.ok(!content.includes('New-only room'));
+ assert.ok(content.includes('1 Inventarpositionen'));
+ assert.ok(content.includes('1 Stück'));
+ assert.equal(values.length,2);
+ assert.equal(createInventoryPdf([values[1]],[],details).getNumberOfPages(),2);
+});

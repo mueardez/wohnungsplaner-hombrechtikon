@@ -3,6 +3,7 @@ import type { InventoryItem } from './InventoryPanel';
 import type { Apartment, MoveDetails } from './moveTypes';
 
 export function createInventoryPdf(items: InventoryItem[], roomNames: string[], details: MoveDetails): jsPDF {
+  items=items.filter(item=>item.isNewPurchase!==true);
   const doc=new jsPDF({unit:'mm',format:'a4'}),margin=16,width=178,bottom=278;
   let y=18;
   const font=(size:number,bold=false,color=40)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);doc.setTextColor(color);};

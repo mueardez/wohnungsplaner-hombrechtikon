@@ -1,6 +1,8 @@
 "use client";
 import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import InventoryPanel,{type InventoryItem} from "./InventoryPanel";
+import {usePurchases,PurchaseLegend} from "./usePurchases";
+import {purchaseColor} from "./purchaseStyle";
 import Plan2D,{type ViewActions} from "./plan/Plan2D";
 import Plan3D from "./plan/Plan3D";
 import {area,bounds,fmt,inferKind,roomNames,rooms,snapItem,warnings,type FurnitureKind,type PlanItem} from "./plan/geometry";
@@ -11,6 +13,8 @@ const kinds:{value:FurnitureKind;label:string}[]=[{value:"box",label:"Neutraler 
 export default function Home(){
  const plan=usePlan(),[section,setSection]=useState<"plan"|"inventory">("plan"),[mode,setMode]=useState<"2d"|"3d">("2d"),[focus,setFocus]=useState("all"),[selected,setSelected]=useState<string|null>(null);
  const [labels,setLabels]=useState(true),[dimensions,setDimensions]=useState(true),[snap,setSnap]=useState(true),[cutaway,setCutaway]=useState(true),[notice,setNotice]=useState("");
+ const purchases=usePurchases();
+ const displayItems=useMemo(()=>plan.items.map(f=>({...f,color:purchaseColor(purchases.flags[f.inventoryId],f.color)})),[plan.items,purchases.flags]);
  const actionsRef=useRef<ViewActions|null>(null),active=plan.items.find(f=>f.id===selected),activeRoom=rooms.find(r=>r.id===focus);
  const select=useCallback((id:string|null)=>setSelected(id),[]);
  const errors=useMemo(()=>active?warnings(active,plan.items):[],[active,plan.items]);
@@ -35,13 +39,13 @@ export default function Home(){
   if(delta[e.key]){e.preventDefault();const d=delta[e.key],step=e.shiftKey?.10:.01;plan.change(plan.current.current.map(item=>item.id===f.id?{...f,x:f.x+d[0]*step,y:f.y+d[1]*step}:item))}
   if(e.key==="Escape")setSelected(null);
  };window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key)},[section,selected,plan]);
- const viewerProps={items:plan.items,selected,focus,labels,dimensions,snap,cutaway,onSelect:select,onBegin:plan.begin,onPreview:plan.preview,onEnd:plan.end,actionsRef,onError:webglError};
+ const viewerProps={items:displayItems,selected,focus,labels,dimensions,snap,cutaway,onSelect:select,onBegin:plan.begin,onPreview:(item:PlanItem)=>{const original=plan.current.current.find(f=>f.id===item.id);if(original)plan.preview({...item,color:original.color})},onEnd:plan.end,actionsRef,onError:webglError};
  return <main className="v2-main">
   <header className="v2-header"><div className="v2-brand"><span className="brand-mark">H</span><div><h1>Raumplaner</h1><span>Hombrechtikon</span></div><span className="v2-badge">V2 · Vorschau</span></div><nav className="mainNav" aria-label="Hauptnavigation"><button className={section==="plan"?"active":""} onClick={()=>setSection("plan")}>Raumplan</button><button className={section==="inventory"?"active":""} onClick={()=>setSection("inventory")}>Inventar & PDF</button></nav><a className="stable-link" href={stableUrl} target="_blank" rel="noreferrer">Aktuelle Version ↗</a></header>
   <div className="v2-banner"><span>Separater Raumplaner · Eure aktuelle Version bleibt erhalten.</span><span>Inventar, Fotos und Umzugsdaten sind in beiden Versionen gemeinsam.</span></div>
   {(notice||plan.storageError)&&<div className="v2-notice" role="status"><span>{plan.storageError||notice}</span>{notice&&!plan.storageError&&<button aria-label="Hinweis schliessen" onClick={()=>setNotice("")}>×</button>}</div>}
   {section==="inventory"?<InventoryPanel roomNames={roomNames} onPlace={place}/>:<>
-   <div className="plan-toolbar"><div className="view-toggle" role="group" aria-label="Ansicht"><button aria-pressed={mode==="2d"} className={mode==="2d"?"active":""} onClick={()=>setMode("2d")}>Grundriss</button><button aria-pressed={mode==="3d"} className={mode==="3d"?"active":""} onClick={()=>setMode("3d")}>3D</button></div>
+   <PurchaseLegend error={purchases.error}/><div className="plan-toolbar"><div className="view-toggle" role="group" aria-label="Ansicht"><button aria-pressed={mode==="2d"} className={mode==="2d"?"active":""} onClick={()=>setMode("2d")}>Grundriss</button><button aria-pressed={mode==="3d"} className={mode==="3d"?"active":""} onClick={()=>setMode("3d")}>3D</button></div>
     <div className="history-buttons"><button title="Rückgängig (Ctrl/⌘ Z)" aria-label="Rückgängig" disabled={!plan.canUndo} onClick={plan.undo}>↶</button><button title="Wiederholen (Ctrl/⌘ Shift Z)" aria-label="Wiederholen" disabled={!plan.canRedo} onClick={plan.redo}>↷</button></div>
     <label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/>Einrasten</label><label><input type="checkbox" checked={labels} onChange={e=>setLabels(e.target.checked)}/>Bezeichnungen</label>
     {mode==="2d"?<label><input type="checkbox" checked={dimensions} onChange={e=>setDimensions(e.target.checked)}/>Masse</label>:<label><input type="checkbox" checked={cutaway} onChange={e=>setCutaway(e.target.checked)}/>Wände niedrig</label>}
@@ -65,13 +69,13 @@ export default function Home(){
       <label className="field">Drehwinkel<div className="degree-field"><input aria-label="Drehwinkel in Grad" type="number" min="0" max="359" value={Math.round(active.rot*180/Math.PI)%360} onChange={e=>{const value=Number(e.target.value);if(Number.isFinite(value))update({rot:((value%360+360)%360)*Math.PI/180})}}/><span>°</span></div></label>
       <div className="rotation-buttons"><button onClick={()=>rotate(-15)}>−15°</button><button onClick={()=>rotate(15)}>+15°</button><button onClick={()=>rotate(90)}>+90°</button></div>
       <label className="field">Möbelform<select value={active.kind} onChange={e=>update({kind:e.target.value as FurnitureKind})}>{kinds.map(k=><option key={k.value} value={k.value}>{k.label}</option>)}</select></label>
-      <label className="field color-field">Farbe<input aria-label="Möbelfarbe" type="color" value={active.color} onChange={e=>update({color:e.target.value})}/></label>
+      <label className="field color-field">{purchases.flags[active.inventoryId]?"Grundfarbe (Neubeschaffung wird violett angezeigt)":"Farbe"}<input aria-label="Möbelfarbe" type="color" value={active.color} onChange={e=>update({color:e.target.value})}/></label>
       <button className="outline-action" onClick={()=>{const f=snapItem(active,true);update({x:f.x,y:f.y})}}>Am Raster / Wand ausrichten</button>
       {errors.length?<div className="placement-warning"><strong>Platzierung prüfen</strong><ul>{errors.map(e=><li key={e}>{e}</li>)}</ul></div>:<div className="placement-good">Keine Überschneidung im Modell erkannt</div>}
       <button className="remove-placement" onClick={remove}>Aus dem Plan entfernen</button>
       <p className="small-note">Pfeiltasten: 1 cm · Shift: 10 cm<br/>Alt beim Ziehen: ohne Einrasten</p>
      </div>:<div className="placement-intro"><p>Erfasse Möbel im Inventar und platziere sie hier. Ziehe eine freie Fläche, um den Plan zu verschieben.</p><button className="add-from-inventory" onClick={()=>setSection("inventory")}>+ Möbel aus Inventar</button>{!plan.items.length&&<div className="empty-plan"><span>Dein Testplan ist noch leer.</span><p>Bestehende Inventarsicherung importieren oder neue Testmöbel erfassen.</p></div>}</div>}
-     {!!plan.items.length&&<div className="placed-list"><div className="list-caption">{plan.items.length} platziert{warningCount? ` · ${warningCount} mit Hinweis`:""}</div>{plan.items.filter(f=>!activeRoom||f.room===activeRoom.name).map(f=><button className={selected===f.id?"placed-item current":"placed-item"} key={f.id} onClick={()=>setSelected(f.id)}><i style={{background:f.color}}/><span>{f.name}<small>{fmt(f.w)} × {fmt(f.d)} m</small></span></button>)}<button className="outline-action" onClick={()=>setSection("inventory")}>Inventar öffnen</button></div>}
+     {!!plan.items.length&&<div className="placed-list"><div className="list-caption">{plan.items.length} platziert{warningCount? ` · ${warningCount} mit Hinweis`:""}</div>{plan.items.filter(f=>!activeRoom||f.room===activeRoom.name).map(f=><button className={selected===f.id?"placed-item current":"placed-item"} key={f.id} onClick={()=>setSelected(f.id)}><i style={{background:purchaseColor(purchases.flags[f.inventoryId],f.color)}}/><span>{f.name}<small>{fmt(f.w)} × {fmt(f.d)} m</small></span></button>)}<button className="outline-action" onClick={()=>setSection("inventory")}>Inventar öffnen</button></div>}
     </aside>
    </div>
    <footer className="plan-footer"><span>{plan.storageError?"Speichern nicht möglich":plan.ready?"Testplan wird lokal gespeichert":"Testplan wird geladen"}</span><span>5-cm-Raster · Raumhöhe 2,39 m · Einbaudetails angenähert</span></footer>
