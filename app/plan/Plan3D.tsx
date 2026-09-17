@@ -1,3 +1,4 @@
+import {createScalePeople,showScalePeople} from "../scalePeople";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -21,7 +22,7 @@ function furnitureModel(f:PlanItem){
  else part(0,.5,0,1,1,1);
  g.scale.set(f.w,f.h,f.d);g.userData.furnitureId=f.id;return g;
 }
-type Runtime={sync:(items:PlanItem[],selected:string|null,labels:boolean)=>void;focus:(id:string)=>void;walls:(low:boolean)=>void};
+type Runtime={people:(show:boolean,focus:string)=>void;sync:(items:PlanItem[],selected:string|null,labels:boolean)=>void;focus:(id:string)=>void;walls:(low:boolean)=>void};
 export default function Plan3D(props:PlannerProps){
  const host=useRef<HTMLDivElement>(null),runtime=useRef<Runtime|null>(null),latest=useRef(props);
  useEffect(()=>{latest.current=props},[props]);
@@ -63,6 +64,7 @@ export default function Plan3D(props:PlannerProps){
     if(f.kind==="counter"){box(g,0,f.h+.037,f.d*.30,f.w*.7,.012,.45,"#b9c9c5");for(const x of[-.15,.15])for(const z of[-.87,-.55]){const ring=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,.015,20),mat("#292d2c"));ring.position.set(x,f.h+.045,z);g.add(ring)}}
    }
   });
+  const people=createScalePeople(rooms);scene.add(people);
   let selectedOutline:THREE.BoxHelper|null=null,activePointer:number|null=null,dragId:string|null=null;
   const ray=new THREE.Raycaster(),mouse=new THREE.Vector2(),plane=new THREE.Plane(new THREE.Vector3(0,1,0),0),offset=new THREE.Vector3(),models=new Map<string,THREE.Group>(),tags=new Map<string,HTMLDivElement>();
   const pick=(e:MouseEvent)=>{const r=renderer.domElement.getBoundingClientRect();mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mouse,camera);let object:THREE.Object3D|null=ray.intersectObjects(furniture.children,true)[0]?.object??null;while(object&&object.userData.furnitureId==null)object=object.parent;return object};
@@ -78,7 +80,7 @@ export default function Plan3D(props:PlannerProps){
    if(selectedOutline){scene.remove(selectedOutline);dispose(selectedOutline);selectedOutline=null}
    const model=selected?models.get(selected):null;if(model){selectedOutline=new THREE.BoxHelper(model,0x547343);scene.add(selectedOutline)}
   };
-  runtime.current={sync,focus:()=>fit(),walls:low=>{wallGroup.children.forEach(o=>{o.scale.y=low?.25:1;o.position.y=wallHeight*(low?.25:1)/2});staticGroup.children.filter(o=>o.userData.door).forEach(o=>{o.scale.y=low?.30:1;o.position.y=2.02*(low?.30:1)/2})}};
+  runtime.current={people:(show,focus)=>showScalePeople(people,show,rooms.find(r=>r.id===focus)?.name),sync,focus:()=>fit(),walls:low=>{wallGroup.children.forEach(o=>{o.scale.y=low?.25:1;o.position.y=wallHeight*(low?.25:1)/2});staticGroup.children.filter(o=>o.userData.door).forEach(o=>{o.scale.y=low?.30:1;o.position.y=2.02*(low?.30:1)/2})}};
   actionsRef.current={fit,zoom:factor=>{camera.zoom=THREE.MathUtils.clamp(camera.zoom*factor,.3,8);camera.updateProjectionMatrix()}};
   const down=(e:PointerEvent)=>{if(e.button!==0||!e.isPrimary||activePointer!==null)return;const object=pick(e);if(!object){latest.current.onSelect(null);return}const p=new THREE.Vector3();if(!ray.ray.intersectPlane(plane,p))return;e.preventDefault();e.stopImmediatePropagation();controls.enabled=false;activePointer=e.pointerId;dragId=object.userData.furnitureId;offset.copy(object.position).sub(p);renderer.domElement.setPointerCapture(e.pointerId);latest.current.onBegin();latest.current.onSelect(dragId)};
   const move=(e:PointerEvent)=>{if(e.pointerId!==activePointer||!dragId)return;pick(e);const p=new THREE.Vector3();if(ray.ray.intersectPlane(plane,p)){p.add(offset);const f=latest.current.items.find(f=>f.id===dragId);if(f)latest.current.onPreview(snapItem({...f,x:p.x,y:p.z},latest.current.snap&&!e.altKey))}};
@@ -94,5 +96,6 @@ export default function Plan3D(props:PlannerProps){
  useEffect(()=>{runtime.current?.sync(props.items,props.selected,props.labels)},[props.items,props.selected,props.labels]);
  useEffect(()=>{runtime.current?.focus(props.focus)},[props.focus]);
  useEffect(()=>{runtime.current?.walls(props.cutaway)},[props.cutaway]);
+ useEffect(()=>{runtime.current?.people(props.showPeople===true,props.focus)},[props.showPeople,props.focus]);
  return <div className="plan3d" ref={host}><div className="canvas-help">Ziehen: verschieben · Rechts ziehen: drehen · Mausrad: Zoom</div></div>;
 }

@@ -13,6 +13,7 @@ const kinds:{value:FurnitureKind;label:string}[]=[{value:"box",label:"Neutraler 
 export default function Home(){
  const plan=usePlan(),[section,setSection]=useState<"plan"|"inventory">("plan"),[mode,setMode]=useState<"2d"|"3d">("2d"),[focus,setFocus]=useState("all"),[selected,setSelected]=useState<string|null>(null);
  const [labels,setLabels]=useState(true),[dimensions,setDimensions]=useState(true),[snap,setSnap]=useState(true),[cutaway,setCutaway]=useState(true),[notice,setNotice]=useState("");
+ const [showPeople,setShowPeople]=useState(true);
  const purchases=usePurchases();
  const displayItems=useMemo(()=>plan.items.map(f=>({...f,color:purchaseColor(purchases.flags[f.inventoryId],f.color)})),[plan.items,purchases.flags]);
  const actionsRef=useRef<ViewActions|null>(null),active=plan.items.find(f=>f.id===selected),activeRoom=rooms.find(r=>r.id===focus);
@@ -39,13 +40,13 @@ export default function Home(){
   if(delta[e.key]){e.preventDefault();const d=delta[e.key],step=e.shiftKey?.10:.01;plan.change(plan.current.current.map(item=>item.id===f.id?{...f,x:f.x+d[0]*step,y:f.y+d[1]*step}:item))}
   if(e.key==="Escape")setSelected(null);
  };window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key)},[section,selected,plan]);
- const viewerProps={items:displayItems,selected,focus,labels,dimensions,snap,cutaway,onSelect:select,onBegin:plan.begin,onPreview:(item:PlanItem)=>{const original=plan.current.current.find(f=>f.id===item.id);if(original)plan.preview({...item,color:original.color})},onEnd:plan.end,actionsRef,onError:webglError};
+ const viewerProps={showPeople,items:displayItems,selected,focus,labels,dimensions,snap,cutaway,onSelect:select,onBegin:plan.begin,onPreview:(item:PlanItem)=>{const original=plan.current.current.find(f=>f.id===item.id);if(original)plan.preview({...item,color:original.color})},onEnd:plan.end,actionsRef,onError:webglError};
  return <main className="v2-main">
   <header className="v2-header"><div className="v2-brand"><span className="brand-mark">H</span><div><h1>Raumplaner</h1><span>Hombrechtikon</span></div><span className="v2-badge">V2 · Vorschau</span></div><nav className="mainNav" aria-label="Hauptnavigation"><button className={section==="plan"?"active":""} onClick={()=>setSection("plan")}>Raumplan</button><button className={section==="inventory"?"active":""} onClick={()=>setSection("inventory")}>Inventar & PDF</button></nav><a className="stable-link" href={stableUrl} target="_blank" rel="noreferrer">Aktuelle Version ↗</a></header>
   <div className="v2-banner"><span>Separater Raumplaner · Eure aktuelle Version bleibt erhalten.</span><span>Inventar, Fotos und Umzugsdaten sind in beiden Versionen gemeinsam.</span></div>
   {(notice||plan.storageError)&&<div className="v2-notice" role="status"><span>{plan.storageError||notice}</span>{notice&&!plan.storageError&&<button aria-label="Hinweis schliessen" onClick={()=>setNotice("")}>×</button>}</div>}
   {section==="inventory"?<InventoryPanel roomNames={roomNames} onPlace={place}/>:<>
-   <PurchaseLegend error={purchases.error}/><div className="plan-toolbar"><div className="view-toggle" role="group" aria-label="Ansicht"><button aria-pressed={mode==="2d"} className={mode==="2d"?"active":""} onClick={()=>setMode("2d")}>Grundriss</button><button aria-pressed={mode==="3d"} className={mode==="3d"?"active":""} onClick={()=>setMode("3d")}>3D</button></div>
+   <PurchaseLegend error={purchases.error}/><label style={{display:"block",margin:"8px 16px",fontSize:13}}><input type="checkbox" checked={showPeople} onChange={e=>setShowPeople(e.target.checked)}/> Massstabsfiguren · 185 cm (Körperbreite ca. 48 cm)</label><div className="plan-toolbar"><div className="view-toggle" role="group" aria-label="Ansicht"><button aria-pressed={mode==="2d"} className={mode==="2d"?"active":""} onClick={()=>setMode("2d")}>Grundriss</button><button aria-pressed={mode==="3d"} className={mode==="3d"?"active":""} onClick={()=>setMode("3d")}>3D</button></div>
     <div className="history-buttons"><button title="Rückgängig (Ctrl/⌘ Z)" aria-label="Rückgängig" disabled={!plan.canUndo} onClick={plan.undo}>↶</button><button title="Wiederholen (Ctrl/⌘ Shift Z)" aria-label="Wiederholen" disabled={!plan.canRedo} onClick={plan.redo}>↷</button></div>
     <label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/>Einrasten</label><label><input type="checkbox" checked={labels} onChange={e=>setLabels(e.target.checked)}/>Bezeichnungen</label>
     {mode==="2d"?<label><input type="checkbox" checked={dimensions} onChange={e=>setDimensions(e.target.checked)}/>Masse</label>:<label><input type="checkbox" checked={cutaway} onChange={e=>setCutaway(e.target.checked)}/>Wände niedrig</label>}

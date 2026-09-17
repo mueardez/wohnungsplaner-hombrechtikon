@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {personPosition} from "../scalePeople";
 import { area, bounds, doorSector, fixtures, fmt, openings, rooms, snapItem, wallDistances, walls, type PlanItem, type Point } from "./geometry";
 
 export type ViewActions={fit:()=>void;zoom:(factor:number)=>void};
 export type PlannerProps={
- items:PlanItem[];selected:string|null;focus:string;labels:boolean;dimensions:boolean;snap:boolean;cutaway:boolean;
+ showPeople?:boolean;items:PlanItem[];selected:string|null;focus:string;labels:boolean;dimensions:boolean;snap:boolean;cutaway:boolean;
  onSelect:(id:string|null)=>void;onBegin:()=>void;onPreview:(item:PlanItem)=>void;onEnd:()=>void;
  actionsRef:React.RefObject<ViewActions|null>;onError?:()=>void;
 };
@@ -74,6 +75,7 @@ export default function Plan2D(props:PlannerProps){
   {f.kind==="shelf"&&<line x1="0" y1={-f.d/2} x2="0" y2={f.d/2} stroke="#e2e7d6" strokeWidth=".02"/>}
   <title>{f.name} · {fmt(f.w)} × {fmt(f.d)} m</title>
  </g>)}
+ {props.showPeople&&rooms.filter(r=>!activeRoom||r.id===activeRoom.id).map(r=>{const [x,y]=personPosition(r.poly);return <g key={r.id} transform={`translate(${x} ${y})`} pointerEvents="none"><title>Massstabsfigur: 185 cm, Körperbreite ca. 48 cm (Draufsicht)</title><ellipse rx=".24" ry=".13" fill="#496b86"/><ellipse rx=".11" ry=".115" fill="#dbe7ef" stroke="#496b86" strokeWidth=".015"/></g>})}
  {labels&&items.map(f=><g key={f.id} transform={`translate(${f.x} ${f.y}) scale(${1/view.z})`} pointerEvents="none"><text textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#172516" paintOrder="stroke" stroke="#f7f8ee" strokeWidth="3" strokeLinejoin="round">{f.name.length>23?f.name.slice(0,22)+"…":f.name}</text></g>)}
  {selectedItem&&<>
   {dimensions&&wallDistances(selectedItem).map((d,i)=><g key={i} pointerEvents="none"><line x1={d.a[0]} y1={d.a[1]} x2={d.b[0]} y2={d.b[1]} stroke="#567643" strokeWidth={1/view.z} strokeDasharray={`${4/view.z} ${3/view.z}`}/><g transform={`translate(${(d.a[0]+d.b[0])/2} ${(d.a[1]+d.b[1])/2}) scale(${1/view.z})`}><rect x="-29" y="-9" width="58" height="18" rx="4" fill="#fffef6"/><text textAnchor="middle" y="4" fontSize="11" fill="#415d31">{fmt(d.length)} m</text></g></g>)}
