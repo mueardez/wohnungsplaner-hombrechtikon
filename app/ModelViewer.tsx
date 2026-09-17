@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import {createScalePeople,showScalePeople} from "./scalePeople";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
@@ -8,9 +9,10 @@ export type Furniture={id:number;inventoryId:string;name:string;x:number;y:numbe
 export type Area={name:string;poly:[number,number][];color:string};
 export type Wall=[[number,number],[number,number]];
 
-type Props={areas:Area[];walls:Wall[];items:Furniture[];focus:string;top:boolean;selected:number|null;onSelect:(id:number|null)=>void;onMove:(id:number,x:number,y:number)=>void;onRotate:(id:number)=>void};
+type Props={showPeople:boolean;areas:Area[];walls:Wall[];items:Furniture[];focus:string;top:boolean;selected:number|null;onSelect:(id:number|null)=>void;onMove:(id:number,x:number,y:number)=>void;onRotate:(id:number)=>void};
 
-export default function ModelViewer({areas,walls,items,focus,top,selected,onSelect,onMove,onRotate}:Props){
+export default function ModelViewer({showPeople,areas,walls,items,focus,top,selected,onSelect,onMove,onRotate}:Props){
+ const peopleRef=useRef<THREE.Group|null>(null);
  const host=useRef<HTMLDivElement>(null);
  const syncFurniture=useRef<((items:Furniture[],selected:number|null)=>void)|null>(null);
  useEffect(()=>{
@@ -18,7 +20,8 @@ export default function ModelViewer({areas,walls,items,focus,top,selected,onSele
   const aspect=el.clientWidth/el.clientHeight,camera=new THREE.OrthographicCamera(-10*aspect,10*aspect,10,-10,.05,100);let renderer:THREE.WebGLRenderer;try{renderer=new THREE.WebGLRenderer({antialias:true})}catch{el.innerHTML='<div class="webglFallback"><strong>3D-Ansicht konnte nicht gestartet werden.</strong><span>Bitte in Chrome die Hardwarebeschleunigung/WebGL aktivieren oder die Grundrissansicht verwenden.</span></div>';return}renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(el.clientWidth,el.clientHeight);renderer.shadowMap.enabled=true;el.replaceChildren(renderer.domElement);
   renderer.domElement.addEventListener("webglcontextlost",e=>{e.preventDefault();el.innerHTML='<div class="webglFallback"><strong>Die 3D-Verbindung wurde unterbrochen.</strong><span>Seite neu laden oder Chrome-Hardwarebeschleunigung aktivieren.</span></div>'},{once:true});
   scene.add(new THREE.HemisphereLight(0xffffff,0xb9aa91,2.2));const sun=new THREE.DirectionalLight(0xffffff,2.4);sun.position.set(-8,16,10);sun.castShadow=true;scene.add(sun);
-  const root=new THREE.Group();scene.add(root);const mat=(c:string)=>new THREE.MeshStandardMaterial({color:c,roughness:.82});
+  const root=new THREE.Group();scene.add(root);
+  const people=createScalePeople(areas,-1);peopleRef.current=people;root.add(people);const mat=(c:string)=>new THREE.MeshStandardMaterial({color:c,roughness:.82});
   areas.forEach(a=>{const sh=new THREE.Shape();a.poly.forEach(([x,y],i)=>i?sh.lineTo(x,y):sh.moveTo(x,y));const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),mat(a.color));m.rotation.x=-Math.PI/2;m.position.y=.01;m.receiveShadow=true;m.userData.area=a.name;if(focus!=="Gesamtwohnung"&&a.name!==focus){(m.material as THREE.MeshStandardMaterial).transparent=true;(m.material as THREE.MeshStandardMaterial).opacity=.17}root.add(m)});
   areas.forEach(a=>{if(!a.name||(!top&&a.name!==focus))return;const xs=a.poly.map(p=>p[0]),ys=a.poly.map(p=>p[1]),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2,area=Math.abs(a.poly.reduce((sum,p,i)=>{const q=a.poly[(i+1)%a.poly.length];return sum+p[0]*q[1]-q[0]*p[1]},0)/2),cv=document.createElement("canvas");cv.width=320;cv.height=82;const g=cv.getContext("2d")!;g.fillStyle="rgba(247,244,237,.8)";g.fillRect(0,0,320,82);g.fillStyle="#292722";g.textAlign="center";g.font="600 18px Arial";g.fillText(a.name,160,31);g.font="14px Arial";g.fillText(`${area.toFixed(1).replace(".",",")} m² · ${(Math.max(...xs)-Math.min(...xs)).toFixed(2).replace(".",",")} × ${(Math.max(...ys)-Math.min(...ys)).toFixed(2).replace(".",",")} m`,160,58);const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));sprite.position.set(cx,.08,-cy);sprite.scale.set(1.15,.29,1);sprite.renderOrder=10;root.add(sprite)});
   const wallMat=mat("#eee9df");const wall=([[x1,y1],[x2,y2]]:Wall)=>{const len=Math.hypot(x2-x1,y2-y1),m=new THREE.Mesh(new THREE.BoxGeometry(len,2.39,.14),wallMat);m.position.set((x1+x2)/2,1.195,-(y1+y2)/2);m.rotation.y=Math.atan2(y2-y1,x2-x1);m.castShadow=m.receiveShadow=true;root.add(m)};
@@ -135,5 +138,6 @@ export default function ModelViewer({areas,walls,items,focus,top,selected,onSele
   };
  },[areas,walls,focus,top,onSelect,onMove,onRotate]);
  useEffect(()=>{syncFurniture.current?.(items,selected)},[items,selected,areas,walls,focus,top,onSelect,onMove,onRotate]);
+ useEffect(()=>{if(peopleRef.current)showScalePeople(peopleRef.current,showPeople,focus==="Gesamtwohnung"?undefined:focus)},[showPeople,areas,walls,focus,top,onSelect,onMove,onRotate]);
  return <div className="modelViewer" ref={host}/>;
 }
