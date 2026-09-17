@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["client/**/*.tsx", "app/page.tsx", "app/InventoryPanel.tsx"],
+  "exclude": ["node_modules", "worker", "db", "app/layout.tsx", "app/chatgpt-auth.ts"]
+}

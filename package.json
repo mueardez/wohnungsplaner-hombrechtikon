@@ -6,6 +6,8 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "typecheck:github": "tsc -p tsconfig.github.json --noEmit",
+    "test:pdf": "node --experimental-strip-types --test tests/inventory-pdf.test.mjs",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "dev:github": "vite --config vite.github.config.ts",
@@ -19,6 +21,7 @@
   "dependencies": {
     "@types/three": "^0.185.4",
     "drizzle-orm": "0.45.2",
+    "firebase": "^12.19.0",
     "jspdf": "^4.2.1",
     "react": "19.2.6",
     "react-dom": "19.2.6",
