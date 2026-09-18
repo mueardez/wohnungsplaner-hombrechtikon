@@ -28,11 +28,25 @@ export function createInventoryPdf(items: InventoryItem[], roomNames: string[], 
     font(16,true);doc.text(title,margin,y);y+=10;
     const fields:[string,string][]=[['Adresse',home.address],['Etage',home.floor],['Anzahl Räume',home.rooms],['Quadratmeter',home.area===undefined?'-':`${home.area.toLocaleString('de-CH')} m²`],['Treppenhaus',home.staircase],['Lift vorhanden',home.elevator?'Ja':'Nein'],['Parkplatzsituation',home.parking]];
     for(const [label,value] of fields){if(y+12>bottom)page();text(label,margin,width,9,true);text(value.trim()||'-');y+=3;}
-    const photos=home.photos.map((value,index)=>({value,index})).filter(p=>p.value);
-    if(photos.length){if(y+58>bottom)page();font(9,true);doc.text('Fotos',margin,y);y+=5;photos.forEach(({value,index},i)=>{const x=margin+i*61;image(value,x,y,56,43);font(8,false,100);doc.text(`Bild ${index+1}`,x,y+48);});y+=55;}
   };
-  home('Alte Wohnung',details.oldHome);
-  page();heading('Neue Wohnung');home('Angaben zum Zielort',details.newHome);
+  const homePhotos=(title:string,home:Apartment)=>{
+    const photos=home.photos.map((value,index)=>({value,index})).filter(p=>p.value);
+    if(!photos.length)return;
+    page();heading(`Fotos - ${title}`);
+    const start=y;
+    photos.forEach(({value,index},i)=>{
+      const top=start+i*82;
+      font(9);const caption=(home.photoDescriptions?.[index]??'').slice(0,255).trim().replace(/\s+/g,' ');
+      const lines=caption?doc.splitTextToSize(caption,width) as string[]:[];
+      const imageHeight=72-lines.length*4;
+      font(9,true);doc.text(`Bild ${index+1}`,margin,top);
+      image(value,margin,top+3,width,imageHeight);
+      font(9);lines.forEach((line,j)=>doc.text(line,margin,top+imageHeight+8+j*4));
+    });
+    y=start+photos.length*82;
+  };
+  home('Alte Wohnung',details.oldHome);homePhotos('Alte Wohnung',details.oldHome);
+  page();heading('Neue Wohnung');home('Angaben zum Zielort',details.newHome);homePhotos('Neue Wohnung',details.newHome);
   const names=[...new Set([...roomNames,...items.map(item=>item.room)])];
   const metric=(value?:number)=>value?.toFixed(2).replace('.',',')??'–';
   for(const room of names){
