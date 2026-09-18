@@ -6,7 +6,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "test:pdf": "node --experimental-strip-types --test tests/inventory-pdf.test.mjs tests/purchases-pdf.test.mjs",
+    "test:pdf": "node --experimental-strip-types --test tests/inventory-pdf.test.mjs tests/purchases-pdf.test.mjs tests/housing-photos.test.mjs",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "dev:github": "vite --config vite.github.config.ts",

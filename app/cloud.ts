@@ -118,6 +118,7 @@ export async function saveMove(value: MoveDetails) {
   if (value.persons !== undefined && (!Number.isInteger(value.persons) || value.persons < 1 || value.persons > 100)) throw new Error('Bitte eine ganze Personenzahl zwischen 1 und 100 eingeben.');
   for (const home of [value.oldHome, value.newHome]) {
     if (home.area !== undefined && (!Number.isFinite(home.area) || home.area < 0)) throw new Error('Bitte eine gültige Quadratmeterzahl eingeben.');
+    if (home.photoDescriptions !== undefined && (!Array.isArray(home.photoDescriptions) || home.photoDescriptions.length > 3 || home.photoDescriptions.some(text => typeof text !== "string" || text.length > 255))) throw new Error("Pro Foto sind höchstens 255 Zeichen Beschreibung erlaubt.");
     if (home.photos.length > 3) throw new Error('Pro Wohnung sind höchstens drei Fotos möglich.');
   }
   const oldPhotos = await Promise.all(value.oldHome.photos.map(async p => await savePhoto(p) ?? ''));
