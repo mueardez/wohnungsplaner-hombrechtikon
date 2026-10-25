@@ -50,7 +50,7 @@ export default function Home(){
     <div className="history-buttons"><button title="Rückgängig (Ctrl/⌘ Z)" aria-label="Rückgängig" disabled={!plan.canUndo} onClick={plan.undo}>↶</button><button title="Wiederholen (Ctrl/⌘ Shift Z)" aria-label="Wiederholen" disabled={!plan.canRedo} onClick={plan.redo}>↷</button></div>
     <label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/>Einrasten</label><label><input type="checkbox" checked={labels} onChange={e=>setLabels(e.target.checked)}/>Bezeichnungen</label>
     {mode==="2d"?<label><input type="checkbox" checked={dimensions} onChange={e=>setDimensions(e.target.checked)}/>Masse</label>:<label><input type="checkbox" checked={cutaway} onChange={e=>setCutaway(e.target.checked)}/>Wände niedrig</label>}
-    <button className="fit-button" onClick={()=>actionsRef.current?.fit()}>Ansicht einpassen</button>
+    <button className="fit-button" onClick={()=>actionsRef.current?.fit()}>Ansicht einpassen</button><button className="fit-button" onClick={()=>{void import("./lightingPlanPdf").then(m=>m.downloadLightingPlanPdf()).catch(()=>setNotice("PDF konnte nicht erstellt werden. Bitte erneut versuchen."))}}>Leuchtenplan-PDF</button>
    </div>
    <div className="v2-workspace">
     <aside className="rooms-panel"><div className="panel-heading"><span className="kicker">DEINE WOHNUNG</span><h2>Räume & Bereiche</h2></div>
